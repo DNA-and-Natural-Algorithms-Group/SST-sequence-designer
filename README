@@ -1,0 +1,8 @@
+
+
+
+
+Sequences in paper designed using 3.0.4, but we include 3.0.6 improvements here which we don’t think will affect sequence quality. We have not (yet) updated to the later versions of NUPACK than nupack3.0.6 because they would require some internal changes to our code to accommodate interface and I/O differences.
+
+
+
