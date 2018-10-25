@@ -1,37 +1,49 @@
+#
+# Specification of 6-bit IBC tile set with 2x2 proofreading with energy thresholds 
+# that will cause the sequence designer to rapidly output random sequences that 
+# have exceptionally poor algorithmic self-assembly properties. Userful for testing
+# purpses. Random sequences are analysed in Figure S18(a) of Supplementary Information A.
+#
+# Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
+# Diverse and robust molecular algorithms using reprogrammable DNA self-assembly
+# 
+
+
+
 # "global" energy interval for all glues, except those glues with user-specified sequences
-lowDG=0 #8.9
-highDG=1000 #9.2
+lowDG=0 
+highDG=1000 
 biotin_strength_boost= 0 # 1.1
 
 # temperature at which to evaluate energies
 temperature = 53.0
     
-# allowed energy of secondary structure of individual tile (for 3bit pf-cp was 1.0; this is the param we might make higher to improve the others below) 
-tile_sec_struct = -1 #1.65 #  plots tell me that 1.5 can work fine
+# Below, negative values cause code to ignore the relevant parameter
 
-# allowed energy of secondary structure of pair of tiles that don't share any glues (for 3bit pf-cp was 6.5) 
-tile_orth = -1 #5.4  # RNAduplex<=6.5 implies binding<=10  
-				 # 6.5 for RNAduplex is roughly 10.0 for NUPACK binding(); 8.0 for RNAduplex = ~12 for binding
-				
-# allowed energy of secondary structure of pair of tiles that share glues (for 3bit pf-cp was \inf; got tiles with 12, 10.5) 
-tile_orth_share = -1 #7.4 # RNAduplex<=8.0 implies binding<=12 
+
+# allowed energy of secondary structure of individual tile
+tile_sec_struct = -1 # negative value implies ignore this value
+
+# allowed energy of secondary structure of pair of tiles that don't share any glues
+tile_orth = -1 
+
+# allowed energy of secondary structure of pair of tiles that share glues
+tile_orth_share = -1 
 
 # threshold for allowed energy of interaction between algorithmically conflicting glues
-# that might be co-located during a strength-1 binding event  (for 3bit pf-cp was 0.65) 
-orth_algorithmic_conflict = -1 #1.6
+# that might be co-located during a strength-1 binding event
+orth_algorithmic_conflict = -1
 
-orth_algorithmic_conflict_generalized = -1 # 2.6
+orth_algorithmic_conflict_generalized = -1
 
 # threshold for allowed energy of glues that will be colocated during correct growth (must be broken up to allow binding of new tile)
-orth_colocated = -1 # 1.4
+orth_colocated = -1
 
 # tiles should bind to lattice with energy strictly greater than the following thresold
 # 11.5 gives 2 bad glues from recent seeds. 12.5 should be achievable (from looking at plot "growth on right (simplified binding(), lattice spacer is TTTTT).pdf").
 lattice_binding_lower_threshold = -1 # 12.3
 
 
-
-# Below, negative values cause code to ignore the relevant parameter
 
 # minimum Hamming distance all domains must be from each other
 hamming = -1
@@ -55,13 +67,11 @@ domain_pair_sec_struct_ave = -0.8
 
 # if this line is present, then parity 0 tiles will use a 3-letter code
 #  A,C,T, and parity 1 tiles will use A,G,T
-three_letter_code = 1 # True
-three_letter_code_exceptions = 0 # 1
+three_letter_code = True # True
+three_letter_code_exceptions = False # False = no expections
 
 endGC = False
-endAT = 0 # True
-# endGC = True
-# endAT = False
+endAT = False 
 
 detect_nondeterminism=False
 
@@ -544,7 +554,6 @@ glue_strength_constraints = \
 # glues with sequences already assigned to them (note that the sequences are allowed to violate the strength constraints)
 glue_sequences = [ 
 #{'name':'U1_nw'   , 'parity':0, 'S':'iW:U1'      , 'W':'T:U8_E'     , 'N':'L:U2_S'     , 'E':'iN:U1'      },
-                   # U1_nw and U1_se are both C1 from old copy tiles; it is the zipper; C1=TGCACCTATT TTACTACACGA AAACGACAAAT AAGCCAATCT
                    ("iL:U1;__->__",  "S", "TGCACCTATT"),
                    ("T:U8_E", "W", "TTACTACACGA"),
                    ("L:U2_S", "N", "AAACGACAAAT"),
@@ -563,17 +572,3 @@ import itertools as it
 # The code below finds pairs of tiles with the same (non-full) name (e.g., U6), 
 #   and the same input to the function they compute, but different output
 mutually_exclusive_tilename_pairs = []
-# tilenames = [tile['name'] for tile in tiles]
-# for t1,t2 in it.combinations(tilenames, 2):
-#     fullname1split = t1.split(';')
-#     fullname2split = t2.split(';')
-#     name1 = fullname1split[0]
-#     name2 = fullname2split[0]
-#     f1 = fullname1split[1]
-#     f2 = fullname2split[1]
-#     if len(fullname1split) == 3 and len(fullname2split) == 3 and name1 == name2 and f1 != f2:
-#         i1,o1 = f1.split('->')
-#         i2,o2 = f2.split('->')
-#         if i1 == i2:
-#             assert o1 != o2 # this should be true because we are searching for combinations without replacement
-#             mutually_exclusive_tilename_pairs.append((t1,t2))
