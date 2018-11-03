@@ -20,38 +20,36 @@ biotin_strength_boost=1.1
 # temperature in degrees C at which to evaluate energies
 temperature = 53.0
     
-# allowed energy of secondary structure of each individual tile (via nupack)
+# allowed energy of secondary structure of each individual tile (via nupack); sequence designer reports violations under "tile sec struct "
 tile_sec_struct = 1.65 
 
-# allowed energy of secondary structure of each pair of tiles that don't share any glues (via RNAduplex)
+# allowed energy of secondary structure of each pair of tiles that don't share any glues (via RNAduplex); sequence designer reports violations under "tile pair"
 tile_orth = 5.4  
 
-# allowed energy of secondary structure of pair of tiles that share glues (via RNAduplex)
+# allowed energy of secondary structure of pair of tiles that share glues (via RNAduplex); sequence designer reports violations under "tile pair "
 tile_orth_share = 7.4 
 
-# threshold for allowed energy of interaction between algorithmically conflicting glues
-# that might be co-located during a strength-1 binding event on an otherwise perfect lattice (via nupack)
+# threshold for allowed energy of interaction between algorithmically conflicting glues that might be co-located 
+# during a strength-1 binding event on an otherwise perfect lattice (via nupack); sequence designer reports violations under "alg conf 1st"
 orth_algorithmic_conflict = 1.6
 
-# threshold for allowed energy of interaction between algorithmically conflicting glues
-# that might be co-located during a strength-1 binding event on a lattice that possibly 
-# has some other kinds of error (via nupack)
+# threshold for allowed energy of interaction between algorithmically conflicting glues that might be co-located 
+# during a strength-1 binding event on a lattice that possibly has some other kinds of error (via nupack); sequence designer reports violations as "alg conf gen"
 orth_algorithmic_conflict_generalized = 2.6
 
-# threshold for allowed energy of glues that will be colocated during correct growth 
-# (must be broken up to allow binding of new tile) (via nupack)
+# threshold for allowed energy of glues that will be colocated during correct growth (must be broken up to 
+# allow binding of new tile) (via nupack); sequence designer reports violations under "in glue pair" (for pairs of input glues) or "out glue pair" (for pairs of output glues)
 orth_colocated = 1.4
 
-# tiles should bind to lattice with energy strictly greater than the following thresold (via nupack)
+# tiles should bind to lattice with energy strictly greater than the following thresold (via nupack); sequence designer reports violations as "lattice binding"
 lattice_binding_lower_threshold = 12.3
 
 
-# if this line is present, then parity 0 tiles will use a 3-letter code
-# A,C,T, and parity 1 tiles will use A,G,T
+# if this line is present, then parity 0 tiles will use a 3-letter code A,C,T, and parity 1 tiles will use A,G,T
 three_letter_code = True
 
-# number of bases that are exceptions to the three letter code, e.g. TGACTGGTAAAG has 
-# three letter code A,T,G with a three_letter_code_exceptions = 1
+# number of bases that are exceptions to the three letter code, 
+# e.g. TGACTGGTAAAG has three letter code A,T,G with three_letter_code_exceptions = 1
 three_letter_code_exceptions = 1
 
 # if endGC == True then each domain begins and end with G or C, e.g. GTTAAGCGTCC 
