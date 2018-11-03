@@ -3,21 +3,23 @@ This program takes as input a set of tile types and outputs SSTs encoding them.
 
 The tiles should all have "strength 1" in the aTAM.
 
-The program has the following design criteria:
+The program has the following design criteria (described in more detail in the associated publication):
 
 1) SSTs should have minimal secondary structure.
 
-2) Sticky ends should have roughly equal binding energy.
+2) Sticky ends should have roughly equal binding energy (i.e., isoenergetic)
 
 3) Sticky ends that are not complementary, but which might end up "close",
-should have *very* low binding affinity.
+should have *very* low binding affinity
 
 4) Sticky ends that are not complementary, even if they don't end up "close",
 should have *somewhat* low binding affinity.
 
-5) No GGGG in a tile
+5) Minimize interaction energy between all pairs of tiles, whether or not they have equal glues.
 
-6) No {C,G}^4 in a sticky end 
+6) No GGGG in a tile
+
+7) No {C,G}^4 in a sticky end
 
 Regarding criterion (3), the sticky ends might be close because they are on the
 same tile type, but this should be handled by case (2). Therefore, we only
@@ -29,7 +31,7 @@ illustration (the # represents a boundary between sticky ends):
           /---------#--------->             tile type t1
           |              b*                /---------#--------->
           |                                |    w
-          |              w*                |    
+          |              w*                |
           \---------#----------            |    y
 /----N----#----E---->                      \---------#----------
 |
@@ -68,11 +70,10 @@ _length10 = 10
 _length11 = 11
 
 directions = ('S', 'W', 'N', 'E')
-
 canonical_directions = ('N','W')
 
 ALGO_CONF_GLUES_WEIGHT_EXCESS = 4
-ALGO_CONF_GLUES_WEIGHT_EXTEND = 2 # Natural number > 1 
+ALGO_CONF_GLUES_WEIGHT_EXTEND = 2 # Natural number > 1
 TILE_SEC_STRUCT_WEIGHT_EXCESS = 4
 TILE_SEC_STRUCT_WEIGHT_EXTEND = 2
 TILE_PAIRS_HEURISTIC_WEIGHT_EXCESS = 1
@@ -82,13 +83,7 @@ OUTPUT_GLUE_PAIRS_EXTEND = 1
 LATTICE_BINDING_EXTEND = 1
 
 QUIT_EARLY_OPTIMIZATION = True
-# QUIT_EARLY_OPTIMIZATION = False
 THREADED = THREADED_TILE_PAIRS = True
-# THREADED = THREADED_TILE_PAIRS = False
-
-
-# ITERATIONS_UNTIL_THREADED_OFF = 2
-
 
 
 def is_canonical(direction):
@@ -100,7 +95,7 @@ def opposite(direction):
     elif direction == 'E': return 'W'
     elif direction == 'W': return 'E'
     else:                  raise ValueError('%s is not a direction' % direction)
-    
+
 def direction2axis(direction):
     if   direction == 'S': return 'NS'
     elif direction == 'N': return 'NS'
@@ -134,9 +129,9 @@ class Glue:
             Glue._glues[(label,axis)] = new_glue
             glue = new_glue
         return glue
-    
+
     factory = staticmethod(factory)
-    
+
     def __init__(self, label, axis, end_constraint):
         '''axis is either "NS" or "EW"; label is a string'''
         self.label = label
@@ -151,7 +146,7 @@ class Glue:
 
     def __str__(self):
         return self.label + ';' + self.axis
-    
+
     def __repr__(self):
         return str(self)
 
@@ -173,11 +168,11 @@ class Glue:
     def add_tile(self, tile):
         if tile not in self.tiles:
             self.tiles.append(tile)
-            
+
     def input_tiles(self):
         '''Return tiles for which this is an input glue'''
         return [tile for tile in self.tiles if self in [tile.glues['N'], tile.glues['W']]]
-    
+
     def output_tiles(self):
         '''Return tiles for which this is an output glue'''
         return [tile for tile in self.tiles if self in [tile.glues['S'], tile.glues['E']]]
@@ -185,7 +180,7 @@ class Glue:
     def canonical_tiles(self):
         '''Return tiles for which this is a glue in a canonical direction'''
         return [tile for tile in self.tiles if self in [tile.glues[direction] for direction in canonical_directions]]
-    
+
     def canonical_direction(self):
         if self.axis == 'NS':
             for direction in ['N','S']:
@@ -195,7 +190,7 @@ class Glue:
             for direction in ['E','W']:
                 if direction in canonical_directions:
                     return direction
-            
+
 
     def direction(self, which):
         if   self.axis == 'NS' and which == 0: return 'S'
@@ -203,7 +198,7 @@ class Glue:
         elif self.axis == 'EW' and which == 0: return 'W'
         elif self.axis == 'EW' and which == 1: return 'E'
         else: raise ValueError('which must be 0 or 1, not %s' % which)
-        
+
     def _check_direction(self, direction):
         if self.axis == 'NS' and direction not in ('N','S'):
             raise ValueError('glue axis %s must be used with direction either N or S, %s is invalid' % (self.axis, direction))
@@ -216,7 +211,7 @@ class Glue:
             if tile.glue(direction) == self:
                 return tile.parity
         raise ValueError('no tile has glue %s in direction %s' % (repr(self), direction))
-    
+
     def input_parity(self):
         for tile in self.tiles:
             if tile.glue('N') == self:
@@ -224,23 +219,23 @@ class Glue:
             elif tile.glue('W') == self:
                 return tile.parity
         raise ValueError('no tile has glue %s in directions N or W' % (repr(self)))
-    
+
     def get_end(self, direction, include_biotins=False):
         if self.end is None:  return None
         self._check_direction(direction)
-        
+
         if is_canonical(direction):
             end = self.end
         else:
             end = wc(self.end)
-        
+
         if include_biotins and self.end_constraint.biotin_direction == direction:
             if not self.tiles:
                 raise ValueError('assign this glue to a tile before calling get_end with include_biotins=True')
             parity = self.get_parity(direction)
             biotin_pos = biotin_end_pos(direction, parity)
             if end[biotin_pos] != 'T':
-                raise ValueError('to include internal biotin_direction on glue %s of tiles %s, base at position %d must be T, but instead is %s' % 
+                raise ValueError('to include internal biotin_direction on glue %s of tiles %s, base at position %d must be T, but instead is %s' %
                                  (self, self.tiles[0], biotin_pos, end[biotin_pos]))
             end = end[:biotin_pos] + '/iBiodT/' + end[biotin_pos+1:]
         return end
@@ -271,8 +266,8 @@ class Glue:
 
     def bind(self, end):
         '''Bind this glue to given end, so that it cannot be assigned anything else.
-        
-        Unlike assign, bind is used to state that a glue MUST have the given end; 
+
+        Unlike assign, bind is used to state that a glue MUST have the given end;
         this is used to design new ends for glues that are part of a system
         of pre-existing tiles, where some ends are already existing and cannot
         be changed.'''
@@ -280,7 +275,7 @@ class Glue:
             raise ValueError('glue %s is already bound to end %s; cannot re-bind to end %s') % (self.label, self.end, end)
         self.end_bound = True
         self._assign_no_check_for_bind(end)
-        
+
     def _assign_no_check_for_bind(self, end):
         if self.tiles:
             tile = self.tiles[0]
@@ -307,7 +302,7 @@ class Glue:
 
     def assigned(self):
         return self.end is not None
-    
+
 
 def short_list(lst):
     if len(lst) < 1000:
@@ -318,20 +313,20 @@ def short_list(lst):
 
 class EndConstraint:
     '''This represents a constraint on a glue that affects which sticky ends it
-    may have (e.g., glue label does not constrain sticky end, but length does). 
-    
+    may have (e.g., glue label does not constrain sticky end, but length does).
+
     Currently it refers to:
     1) lowDG and highDG, bounds on the energy of the end assigned to the glue
     2) the length end assigned to the glue
-    3) (potential) direction of biotin_direction on the glue (which means that base must 
+    3) (potential) direction of biotin_direction on the glue (which means that base must
        be either a T or an A, depending on whether it is canonical)
     4) the alphabet to use (for three-letter codes)'''
     _end_constraints = dict()
-    
+
     def factory(lowDG, highDG, length, biotin_direction, endGC, endAT, orth_any, orth_any_ave, orth_algorithmic_conflict, orth_colocated, domain_indv_sec_struct, domain_pair_sec_struct, domain_pair_sec_struct_ave, tile_sec_struct, hamming, orth_algorithmic_conflict_generalized, lattice_binding_lower_threshold): #, seqs):
         '''Create new end constraint if none already exists.'''
         args = tuple((lowDG, highDG, length, biotin_direction, endGC, endAT,
-                      orth_any, orth_any_ave, orth_algorithmic_conflict, orth_colocated, domain_indv_sec_struct, 
+                      orth_any, orth_any_ave, orth_algorithmic_conflict, orth_colocated, domain_indv_sec_struct,
                       domain_pair_sec_struct, domain_pair_sec_struct_ave, tile_sec_struct, hamming, orth_algorithmic_conflict_generalized, lattice_binding_lower_threshold))
         if args in EndConstraint._end_constraints:
             end_constraint = EndConstraint._end_constraints[args]
@@ -340,18 +335,18 @@ class EndConstraint:
             EndConstraint._end_constraints[args] = new_end_constraint
             end_constraint = new_end_constraint
         return end_constraint
-     
+
     factory = staticmethod(factory)
-     
+
     def end_constraints():
         '''Return list of all EndConstraints created in system.'''
         return EndConstraint._end_constraints.values()
-     
+
     end_constraints = staticmethod(end_constraints)
-    
+
     def __init__(self, lowDG, highDG, length, biotin_direction, endGC, endAT,
-                 orth_any, orth_any_ave, orth_algorithmic_conflict, orth_colocated, domain_indv_sec_struct, 
-                 domain_pair_sec_struct, domain_pair_sec_struct_ave, tile_sec_struct, 
+                 orth_any, orth_any_ave, orth_algorithmic_conflict, orth_colocated, domain_indv_sec_struct,
+                 domain_pair_sec_struct, domain_pair_sec_struct_ave, tile_sec_struct,
                  hamming, orth_algorithmic_conflict_generalized, lattice_binding_lower_threshold): #, seqs):
         self.lowDG = lowDG
         self.highDG = highDG
@@ -374,11 +369,11 @@ class EndConstraint:
         self.lattice_binding_lower_threshold = lattice_binding_lower_threshold
 #         self.seqs = seqs
         self.glues = []
-        
+
     def __str__(self):
         return 'EndConstraint(lowDG=%.1f,highDG=%.1f,len=%d,      bio_dir=%s,            endGC=%s,   endAT=%s,   orth_any=%.1f, orth_any_ave=%.1f,orth_algorithmic_conflict=%.1f, orth_colocated=%.1f, domain_indv_sec_struct=%.1f, domain_pair_sec_struct=%.1f, domain_pair_sec_struct_ave=%.1f, tile_sec_struct=%.1f, hamming=%d,   orth_algorithmic_conflict_generalized=%.1f, lattice_binding_lower_threshold=%.1f)' \
             %           (self.lowDG,self.highDG,self.length, self.biotin_direction, self.endGC, self.endAT, self.orth_any, self.orth_any_ave,self.orth_algorithmic_conflict, self.orth_colocated, self.domain_indv_sec_struct, self.domain_pair_sec_struct, self.domain_pair_sec_struct_ave, self.tile_sec_struct, self.hamming, self.orth_algorithmic_conflict_generalized, self.lattice_binding_lower_threshold)
-        
+
     def __hash__(self):
         if not hasattr(self,'_hash'):
             self._hash = hash(str(self))
@@ -389,7 +384,7 @@ class EndConstraint:
 #         return hash(self) == hash(other)
 
     def __cmp__(self, other):
-        return cmp(hash(self),hash(other)) 
+        return cmp(hash(self),hash(other))
 
 class Tile:
     def __init__(self, name, s, w, n, e, parity, sec_struct, orth, orth_share):
@@ -414,13 +409,13 @@ class Tile:
                 seq_len = len(seq)
                 if not seq_len == len_end(direction, parity):
                     raise ValueError('sequence %s of glue %s is wrong length for direction %s on tile %s with SST parity %d' % (seq, repr(glue), direction, self.name, parity))
-    
+
     def __hash__(self):
         return hash(self.name)
-      
+
     def __eq__(self, other):
         return self.name == other.name
-    
+
     def __cmp__(self, other):
         return cmp(self.name, other.name)
 
@@ -453,7 +448,7 @@ class Tile:
     def all_glues(self):
         '''Return all glues on this tile.'''
         return self.glues.values()
-    
+
     def unbound_glues(self):
         '''Return all unbound glues on this tile.'''
         uncons_glues = []
@@ -502,11 +497,11 @@ def len_end(direction, parity):
 
 def biotin_tile_pos(direction):
     '''Which position should the internal dT with biotin_direction go, if the end lies in
-    the given direction. (Should make the major groove, where the internal 
+    the given direction. (Should make the major groove, where the internal
     biotin_direction resides,  point towards the "inside" of the SST tube).
-    
-    The indexing is with respect to the entire tile, not with respect to the 
-    start of the glue end (hence the positions range between 0 and 41, not 
+
+    The indexing is with respect to the entire tile, not with respect to the
+    start of the glue end (hence the positions range between 0 and 41, not
     between 0 and 9 or 0 and 10).'''
     if _length10 == 10 and _length11 == 11:
         if   direction == 'S': return 5
@@ -520,16 +515,16 @@ def biotin_tile_pos(direction):
         elif direction == 'N': return 13
         elif direction == 'E': return 18
         else: raise ValueError('%s is not a valid direction' % direction)
-    
+
 def biotin_end_pos(direction, parity):
-    '''Like biotin_tile_pos, but relative to the glue end, not the 
+    '''Like biotin_tile_pos, but relative to the glue end, not the
     whole tile, so indexed from 0 to 9 or 10. Depends on "SST parity" of tile
     since that determines the length of the glue end.
-    
-    Note that if the end is not canonical, to have a T at a 
+
+    Note that if the end is not canonical, to have a T at a
     position pos, needs its canonical partner to have an A at position
     end_length - pos.
-    
+
     parity     = 0 if inner sticky ends ('W','N') are length 10,
                  1 if inner sticky ends are length 11'''
     tile_pos = biotin_tile_pos(direction)
@@ -548,7 +543,7 @@ def random_bad_unconstrained_tile(bad_tiles):
 
 def split(l, num):
     """Yield successive chunks from l, each of same size, to make num total.
-    
+
     http://stackoverflow.com/questions/312443/how-do-you-split-a-list-into-evenly-sized-chunks-in-python"""
     assert 0 < num <= len(l)
     n = len(l) // num
@@ -572,12 +567,12 @@ class TileSet:
         if len(tile_name_set) != len(tile_name_list):
             raise ValueError('duplicate tile name')
         self.name2tile = { tile.name: tile for tile in tiles }
-        self.tile_pairs_to_check = [(t1,t2) for (t1,t2) in itertools.combinations_with_replacement(tiles,2) 
+        self.tile_pairs_to_check = [(t1,t2) for (t1,t2) in itertools.combinations_with_replacement(tiles,2)
                                     if (t1.name,t2.name) not in mutually_exclusive_tilename_pairs]
         self.tile_pair_names_to_check = [ (t1.name,t2.name) for (t1,t2) in self.tile_pairs_to_check ]
         self.find_conflicting_glues(detect_nondeterminism)
         self.check_parity_against_glues()
-        
+
     def end_constraints_unbound(self):
         if not hasattr(self,'_end_constraints_unbound'):
             set_end_constraints_unbound = set()
@@ -585,7 +580,7 @@ class TileSet:
                 set_end_constraints_unbound.add(glue.end_constraint)
             self._end_constraints_unbound = list(set_end_constraints_unbound)
         return self._end_constraints_unbound
-    
+
     def check_parity_against_glues(self):
         '''Check that the tiles are consistent in that glues only join tiles
         to tiles of the opposite parity.'''
@@ -600,9 +595,9 @@ class TileSet:
     def find_conflicting_glues(self, detect_nondeterminism):
         '''Search through all tiles, assuming north and west are "input" sticky
         ends, and assign to each such glue a list of its conflicting glues.
-        These are glues it could end up next to because 
-        1) the other input glue is shared with another tile, 
-        2) two output glues of a given tile
+        These are glues it could end up next to because
+        1) the other input glue is shared with another tile,
+        2) two output glues of a given tile,
         3) two output glues of diagonally adjacent tiles (e.g., w* and y* above).'''
         # reason 1
         for (tile1,tile2) in self.tile_pairs_to_check:
@@ -614,11 +609,11 @@ class TileSet:
             wg2 = tile2.glue('W')
             if detect_nondeterminism and ng1 == ng2 and wg1 == wg2:
                 raise ValueError('nondeterminism detected: tiles %s and %s share north glue %s and west glue %s in common' % (tile1.name,tile2.name,ng1.label,ng2.label))
-            
-            # In the following case we have a nondeterministic tileset, that is: 
-            # tile1 != tile2, and tile1 & tile2 
-            # share both N and W glues (i.e. tile1 & tile2 share both input sides) 
-            if ng1 == ng2 and wg1 == wg2: 
+
+            # In the following case we have a nondeterministic tileset, that is:
+            # tile1 != tile2, and tile1 & tile2
+            # share both N and W glues (i.e. tile1 & tile2 share both input sides)
+            if ng1 == ng2 and wg1 == wg2:
                 continue
             if ng1 == ng2:
                 wg1.conflicting_glues_first_order.add(wg2)
@@ -626,7 +621,7 @@ class TileSet:
             if wg1 == wg2:
                 ng1.conflicting_glues_first_order.add(ng2)
                 ng2.conflicting_glues_first_order.add(ng1)
-                
+
             proof_block1,_,proof_internal_pos1 = tile1.name.split(';')
             proof_block2,_,proof_internal_pos2 = tile2.name.split(';')
             if proof_block1 == proof_block2 and proof_internal_pos1 == proof_internal_pos2:
@@ -636,10 +631,7 @@ class TileSet:
                 if ng1 != ng2:
                     ng1.conflicting_glues_generalized.add(ng2)
                     ng2.conflicting_glues_generalized.add(ng1)
-        
-#         for glue in self.glues():
-#             print 'num generalized conflicting glues for %16s: %d' % (glue.label, len(glue.conflicting_glues_generalized))
-                
+
 
 
     def check4G(self):
@@ -708,9 +700,9 @@ class TileSet:
                     bad_glues.append(glue_unbound)
                     if not glue.bound():
                         bad_glues.append(glue)
-        
+
         return bad_glues
-    
+
     def check_tile_sec_struct(self, temperature, num_bad_now, num_bad_opt, threaded, weight_excess):
         '''Find glues whose tiles have too much secondary structure.'''
         if QUIT_EARLY_OPTIMIZATION and num_bad_opt > 0:
@@ -718,7 +710,7 @@ class TileSet:
             if threaded:
                 group_size = global_thread_pool._processes
                 for tile_group in grouper(self.tiles, group_size):
-                    tile_group = [tile for tile in tile_group if tile] # strip out None's that fill in to make size of last group equal to group_size 
+                    tile_group = [tile for tile in tile_group if tile] # strip out None's that fill in to make size of last group equal to group_size
                     results = [global_thread_pool.apply_async(sd.hairpin, args=(tile.sequence(), temperature)) for tile in tile_group]
                     energies = [result.get() for result in results]
                     for tile,energy in zip(tile_group, energies):
@@ -728,7 +720,7 @@ class TileSet:
                                 num_to_add = int(math.ceil(weight_excess*(energy - tile.sec_struct)))
                                 bad_glues.extend(tile.unbound_glues() * num_to_add)
                                 if len(bad_glues)*TILE_SEC_STRUCT_WEIGHT_EXTEND + num_bad_now > num_bad_opt:
-                                    return bad_glues        
+                                    return bad_glues
             else:
                 for tile in self.tiles:
                     energy = sd.hairpin(tile.sequence(), temperature) if tile.sec_struct > 0 else 0
@@ -740,12 +732,12 @@ class TileSet:
                             if len(bad_glues)*TILE_SEC_STRUCT_WEIGHT_EXTEND + num_bad_now > num_bad_opt:
                                 return bad_glues
             return bad_glues
-        else: 
+        else:
             if threaded:
                 def ss_if_positive(tile, temperature):
                     if tile.sec_struct < 0:
                         return (tile,0)
-                    else: 
+                    else:
                         return (tile,sd.hairpin(tile.sequence(), temperature))
                 results = [global_thread_pool.apply_async(ss_if_positive, args=(tile, temperature)) for tile in self.tiles]
                 tile_energies = [result.get() for result in results]
@@ -757,7 +749,7 @@ class TileSet:
 #                     tile_num += 1
                     energy = sd.hairpin(tile.sequence(), temperature) if tile.sec_struct > 0 else 0
                     tile_energies.append((tile,energy))
-                     
+
             bad_glues = []
             for tile,energy in tile_energies:
                 if tile.unbound_glues() and tile.sec_struct > 0: # if all bound, then nothing we can do
@@ -810,7 +802,7 @@ class TileSet:
                     if not ng.bound(): bad_glues.append(ng)
                     if not wg.bound(): bad_glues.append(wg)
             return bad_glues
-    
+
     def check_output_pairs(self, temperature, num_bad_now, num_bad_opt, threaded):
         '''Check pairs of ends that are output ends of tiles (which must
         be pulled apart another tile to bind using either of them).'''
@@ -846,7 +838,7 @@ class TileSet:
                 if orth_colocated < 0:
                     continue
                 glue_end_pairs.append((sg,eg,out_end1,out_end2,orth_colocated))
-            
+
     #             energy = sd.binding(out_end1, out_end2, temperature)
             end_pairs = [(end1,end2) for (_,_,end1,end2,orth_colocated) in glue_end_pairs]
             energies = eval_colocated_end_pairs(end_pairs, temperature, threaded)
@@ -855,10 +847,10 @@ class TileSet:
                 if energy > orth_colocated:
                     if not sg.bound(): bad_glues.append(sg)
                     if not eg.bound(): bad_glues.append(eg)
-            return bad_glues 
+            return bad_glues
 
     def check_lattice_binding(self, temperature, num_bad_now, num_bad_opt, threaded):
-        '''Check the strnegth of binding of each tile, by its two input ends, 
+        '''Check the strnegth of binding of each tile, by its two input ends,
         to the matching pair lattice ends.'''
         if QUIT_EARLY_OPTIMIZATION and num_bad_opt > 0:
             bad_glues = []
@@ -869,11 +861,11 @@ class TileSet:
                     continue
                 end1 = wg.input_end() # was "output_end"
                 end2 = ng.input_end()
-                lower_threshold_binding_energy = ng.end_constraint.lattice_binding_lower_threshold # assume all glues get same lattice_binding_lower_threshold  
+                lower_threshold_binding_energy = ng.end_constraint.lattice_binding_lower_threshold # assume all glues get same lattice_binding_lower_threshold
                 if lower_threshold_binding_energy < 0:
                     continue
 
-                energy = eval_lattice_binding_energy(end1, end2, temperature)         
+                energy = eval_lattice_binding_energy(end1, end2, temperature)
                 if energy < lower_threshold_binding_energy:
                     if not wg.bound(): bad_glues.append(wg)
                     if not ng.bound(): bad_glues.append(ng)
@@ -886,14 +878,14 @@ class TileSet:
                 wg = tile.glue('W')
                 ng = tile.glue('N')
                 if wg.bound() and ng.bound():
-                    continue                    
+                    continue
                 end1 = wg.input_end()
                 end2 = ng.input_end()
-                lower_threshold_binding_energy = ng.end_constraint.lattice_binding_lower_threshold # assume all glues get same lattice_binding_lower_threshold  
+                lower_threshold_binding_energy = ng.end_constraint.lattice_binding_lower_threshold # assume all glues get same lattice_binding_lower_threshold
                 if lower_threshold_binding_energy < 0:
                     continue
                 glue_end_pairs.append((wg,ng,end1,end2,lower_threshold_binding_energy))
-            
+
             end_pairs = [(end1,end2) for (_,_,end1,end2,lower_threshold_binding_energy) in glue_end_pairs]
             energies = eval_lattice_binding_energies(end_pairs, temperature, threaded)
             bad_glues = []
@@ -901,11 +893,11 @@ class TileSet:
                 if energy < lower_threshold_binding_energy:
                     if not wg.bound(): bad_glues.append(wg)
                     if not ng.bound(): bad_glues.append(ng)
-            return bad_glues 
+            return bad_glues
 
     def check_algorithmic_conflicting_glues(self, temperature, num_bad_now, num_bad_opt, threaded, weight_excess):
-        ''' Find glues that have too much interaction with an algorithmic conflicting glue 
-        
+        ''' Find glues that have too much interaction with an algorithmic conflicting glue
+
         (could end up near each other during a strength-1 binding event).'''
         bad_glues_first_order = []
         bad_glues_generalized = []
@@ -919,27 +911,27 @@ class TileSet:
                     orth_algorithmic_conflict_first_order = conflicting_glue.end_constraint.orth_algorithmic_conflict
                     if orth_algorithmic_conflict_first_order < 0:
                         continue
-                    # the proper order in which to concatenate the ends depends 
+                    # the proper order in which to concatenate the ends depends
                     # on the axis, observe:
                     #           /---------#--------->
-                    #           |              
-                    #           |              
-                    #           |                  
-                    #           \----W----#---------- 
+                    #           |
+                    #           |
+                    #           |
+                    #           \----W----#----------
                     # /---------#----E----> this should be W (in) then E (out)
                     # |
                     # |
-                    # |                              
+                    # |
                     # \---------#----S----- this should be S (out) then N (in)
-                    #           /----N----#---------> 
-                    #           |                  
-                    #           |                    
-                    #           |                  
+                    #           /----N----#--------->
+                    #           |
+                    #           |
+                    #           |
                     #           \---------#----------
-                    
+
                     if glue.axis == 'EW': end1,end2 = end, conflicting_end
                     else:                 end1,end2 = conflicting_end, end
-                    
+
                     energy = eval_colocated_end_pair(end1, end2, temperature)
                     evals += 1
                     if energy > orth_algorithmic_conflict_first_order:
@@ -957,10 +949,10 @@ class TileSet:
                     orth_algorithmic_conflict_generalized = conflicting_glue.end_constraint.orth_algorithmic_conflict_generalized
                     if orth_algorithmic_conflict_generalized < 0:
                         continue
-                    
+
                     if glue.axis == 'EW': end1,end2 = end, conflicting_end
                     else:                 end1,end2 = conflicting_end, end
-                    
+
                     energy = eval_colocated_end_pair(end1, end2, temperature)
                     evals += 1
                     if energy > orth_algorithmic_conflict_generalized:
@@ -974,7 +966,7 @@ class TileSet:
 #                             print '\nnum acg evaluations: {}'.format(evals)
                             return (bad_glues_first_order, bad_glues_generalized) # bad_glues_generalized
 #             print '\nnum acg evaluations: {}'.format(evals)
-            
+
         else:
             glue_end_pairs_first_order = []
             glue_end_pairs_generalized = []
@@ -1018,16 +1010,16 @@ class TileSet:
         return (bad_glues_first_order, bad_glues_generalized)
 
     def populate_tile_pair_name2energy_most_recent(self, temperature, tile_pair_names_to_check_this_time, start_pos, threaded_tile_pairs):
-        # DD: this number is chosen because in timing tests, the overhead of 
-        # RNAduplex is about 18ms, and after that it takes about 1ms per pair 
-        # of length 42 seqs. So 100 pairs is where overhead of calling 
-        # RNAduplex is about 20%, i.e., not too large, but a small enough 
+        # DD: this number is chosen because in timing tests, the overhead of
+        # RNAduplex is about 18ms, and after that it takes about 1ms per pair
+        # of length 42 seqs. So 100 pairs is where overhead of calling
+        # RNAduplex is about 20%, i.e., not too large, but a small enough
         # number of pairs to make a bigger payoff for quitting early
-        num_pairs_per_call = 100 
+        num_pairs_per_call = 100
         num_parallel_lists = global_thread_pool._processes if threaded_tile_pairs else 1
         namepairs = [(n1,n2) for (n1,n2) in tile_pair_names_to_check_this_time[start_pos:start_pos+num_pairs_per_call*num_parallel_lists]]
         seqpairs = [ (self.name2tile[n1].sequence(), self.name2tile[n2].sequence()) for (n1,n2) in namepairs ]
-        
+
         if threaded_tile_pairs:
             list_of_list_of_seqpair = list(split(seqpairs, num_parallel_lists))
             lengths = [len(list_of_seqpair) for list_of_seqpair in list_of_list_of_seqpair]
@@ -1038,25 +1030,25 @@ class TileSet:
             energies = itertools.chain.from_iterable(list_of_list_of_energies)
         else:
             energies = sd.RNAduplex_multiple(seqpairs, temperature)
-            
+
         for ((n1,n2),energy) in zip(namepairs,energies):
             self.tile_pair_name2energy_most_recent[(n1,n2)] = energy
         return start_pos+len(namepairs)
-    
+
     def check_tile_pairs_heuristic(self, temperature, num_bad_now, num_bad_opt, threaded_tile_pairs, weight_excess):
         if not hasattr(self, 'tile_names_changed_from_opt'): # DW: True iff this is the first call to the function check_tile_pairs_heuristic
             # DW: following will be a dict with keys which are all pairs (i.e. of size 63,190)
             tile_pair_names_to_check_this_time = self.tile_pair_names_to_check
         else:
-            tile_pair_names_to_check_this_time = [ (t1name,t2name) 
+            tile_pair_names_to_check_this_time = [ (t1name,t2name)
                 for (t1name,t2name) in self.tile_pair_names_to_check   # DW: tile_pair_names_to_check is everyone!
-                if (t1name in self.tile_names_changed_from_opt 
+                if (t1name in self.tile_names_changed_from_opt
                 or  t2name in self.tile_names_changed_from_opt) ]   # DW: tile_names_changed_from_opt was set
                                                                     # in local_search_end_assign(...)
                                                                     # and is the set of tiles (names) that have
-                                                                    # changed from the previous best (opt) glue seq set 
-        
-        
+                                                                    # changed from the previous best (opt) glue seq set
+
+
         if QUIT_EARLY_OPTIMIZATION and num_bad_opt > 0:
             set_tile_pair_names_to_check_this_time = set(tile_pair_names_to_check_this_time)
             self.tile_pair_name2energy_most_recent = dict()
@@ -1070,11 +1062,11 @@ class TileSet:
                 energy = self.tile_pair_name2energy_most_recent.get((t1name,t2name))
                 if energy is None:
                     energy = self.tile_pair_name2energy_opt[(t1name,t2name)]
-                
+
                 t1 = self.name2tile[t1name]
                 t2 = self.name2tile[t2name]
                 t1orth,t2orth = (t1.orth_share,t2.orth_share) if share_complementary_glues(t1, t2) else (t1.orth,t2.orth)
-                if t1orth <= 0 and t2orth <= 0: 
+                if t1orth <= 0 and t2orth <= 0:
                     continue
                 if energy > t1orth or energy > t2orth:
                     # add proportional to excess of energy
@@ -1084,7 +1076,7 @@ class TileSet:
                         return bad_glues
             return bad_glues
         else:
-            tile_pair_seqs = [(self.name2tile[t1name].sequence(), self.name2tile[t2name].sequence()) 
+            tile_pair_seqs = [(self.name2tile[t1name].sequence(), self.name2tile[t2name].sequence())
                               for (t1name,t2name) in tile_pair_names_to_check_this_time]
             if threaded_tile_pairs:
     #             num_parallel_lists = max(global_thread_pool._processes, len(tile_pair_seqs) // 500)
@@ -1099,9 +1091,9 @@ class TileSet:
                 energies = itertools.chain.from_iterable(list_of_list_of_energies)
             else:
                 energies = sd.RNAduplex_multiple(tile_pair_seqs, temperature)
-            
+
             self.tile_pair_name2energy_most_recent = dict(zip(tile_pair_names_to_check_this_time, energies))
-            
+
             bad_glues = []
             # assign bad glues based on bad tile pairs
     #         start = time.time()
@@ -1110,11 +1102,11 @@ class TileSet:
                 energy = self.tile_pair_name2energy_most_recent.get((t1name,t2name))
                 if energy is None:
                     energy = self.tile_pair_name2energy_opt[(t1name,t2name)]
-                
+
                 t1 = self.name2tile[t1name]
                 t2 = self.name2tile[t2name]
                 t1orth,t2orth = (t1.orth_share,t2.orth_share) if share_complementary_glues(t1, t2) else (t1.orth,t2.orth)
-                if t1orth <= 0 and t2orth <= 0: 
+                if t1orth <= 0 and t2orth <= 0:
                     continue
                 if energy > t1orth or energy > t2orth:
                     # add proportional to excess of energy
@@ -1122,14 +1114,14 @@ class TileSet:
                     bad_glues.extend((t1.unbound_glues() + t2.unbound_glues()) * num_to_add)
     #         end = time.time()
     #         print '\n' + '*'*79 + ('\n** %.3f seconds for loop to log bad tile pair glues\n' % ((end - start))) + '*'*79 + '\n'
-                        
+
             return bad_glues
-    
+
     def check_tile_pairs_heuristic_check_all(self, temperature, threaded_tile_pairs, tile_pair_names_to_check_this_time):
         '''Non-caching version of check_tile_pairs_heuristic for debugging'''
-        tile_pair_seqs = [(self.name2tile[t1name].sequence(), self.name2tile[t2name].sequence()) 
+        tile_pair_seqs = [(self.name2tile[t1name].sequence(), self.name2tile[t2name].sequence())
                           for (t1name,t2name) in tile_pair_names_to_check_this_time]
-        
+
         if threaded_tile_pairs:
             list_of_list_of_seqpair = list(split(tile_pair_seqs, global_thread_pool._processes))
             results = [global_thread_pool.apply_async(sd.RNAduplex_multiple, args=(seqpairs, temperature)) for seqpairs in list_of_list_of_seqpair]
@@ -1137,19 +1129,19 @@ class TileSet:
             energies = itertools.chain.from_iterable(list_of_list_of_energies)
         else:
             energies = sd.RNAduplex_multiple(tile_pair_seqs, temperature)
-        
+
         tile_pair_name2energy = dict(zip(tile_pair_names_to_check_this_time, energies))
-            
+
         return tile_pair_name2energy
-            
+
         # this code run else; helps me remember variable names
         #self.bad_tile_pairs_opt = self.bad_tile_pairs
         #self.tiles_changed_from_opt = glue.tiles
         #self.name2tile = { tile.name: tile for tile in tiles }
-        #self.tile_pairs_to_check = [(t1,t2) for (t1,t2) in itertools.combinations_with_replacement(tiles,2) 
+        #self.tile_pairs_to_check = [(t1,t2) for (t1,t2) in itertools.combinations_with_replacement(tiles,2)
         #                            if (t1.name,t2.name) not in mutually_exclusive_tilename_pairs]
         #self.tile_pair_names_to_check = set( (t1.name,t2.name) for (t1,t2) in self.tile_pairs_to_check )
-    
+
 
     def log_bad_glue_source(self, num_bad_glues, num_bad_glues_opt, num_bad_glues_orig, last_char):
         width = self.width
@@ -1157,7 +1149,7 @@ class TileSet:
         sys.stdout.write('{:>{width}}{}'.format('{:{small_width}d}#{:{small_width}d}/{:{small_width}d}'.format(num_bad_glues_opt, num_bad_glues, num_bad_glues_orig, small_width=small_width), last_char, width=width))
         sys.stdout.flush()
 #         print '\n'*LOG_BAD_GLUES + '# new bad glues due to {:28s} {:5d} / {:5d} originally'.format(src_str, num_bad_glues, num_bad_glues_orig)
-    
+
     def find_bad_glues(self, temperature, num_bad_opt, threaded=True, threaded_tile_pairs=True, check_tile_pairs=True):
         '''Check all tiles and glues to look for glues that are causing
         unwanted interactions.'''
@@ -1172,18 +1164,18 @@ class TileSet:
         sys.stdout.flush()
 #         new_bad_glues.extend(self.check4G())
 #         if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt: return new_bad_glues
-        
+
         CHECK_ONLY_ACG = False
-        
+
         if not CHECK_ONLY_ACG:
-            bad_glues_tss = self.check_tile_sec_struct(temperature, len(new_bad_glues), num_bad_opt, threaded, weight_excess=TILE_SEC_STRUCT_WEIGHT_EXCESS) 
+            bad_glues_tss = self.check_tile_sec_struct(temperature, len(new_bad_glues), num_bad_opt, threaded, weight_excess=TILE_SEC_STRUCT_WEIGHT_EXCESS)
             bas_glues_tss = bad_glues_tss*TILE_SEC_STRUCT_WEIGHT_EXTEND
             if not hasattr(self, 'num_bg_tss_orig'): self.num_bg_tss_orig = len(bad_glues_tss)
             if not hasattr(self, 'num_bg_tss_opt'): self.num_bg_tss_opt = -1
             self.num_bg_tss_most_recent = len(bad_glues_tss)
             self.log_bad_glue_source(len(bad_glues_tss), self.num_bg_tss_opt, self.num_bg_tss_orig, '|')
             new_bad_glues.extend(bas_glues_tss)
-            
+
             if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt:
                 self.log_bad_glue_source(-1, self.num_bg_acg_opt_fo, self.num_bg_acg_orig_fo, '|')
                 self.log_bad_glue_source(-1, self.num_bg_acg_opt_g, self.num_bg_acg_orig_g, '|')
@@ -1192,8 +1184,8 @@ class TileSet:
                 self.log_bad_glue_source(-1, self.num_bg_ogp_opt, self.num_bg_ogp_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_tp_opt, self.num_bg_tp_orig, '|')
                 return new_bad_glues
-        
-        bad_glues_acg_fo,bad_glues_acg_g = self.check_algorithmic_conflicting_glues(temperature, len(new_bad_glues), num_bad_opt, threaded, weight_excess=ALGO_CONF_GLUES_WEIGHT_EXCESS) 
+
+        bad_glues_acg_fo,bad_glues_acg_g = self.check_algorithmic_conflicting_glues(temperature, len(new_bad_glues), num_bad_opt, threaded, weight_excess=ALGO_CONF_GLUES_WEIGHT_EXCESS)
         bad_glues_acg_fo = bad_glues_acg_fo*ALGO_CONF_GLUES_WEIGHT_EXTEND
         bad_glues_acg_g = bad_glues_acg_g*ALGO_CONF_GLUES_WEIGHT_EXTEND
         if not hasattr(self, 'num_bg_acg_orig_fo'): self.num_bg_acg_orig_fo = len(bad_glues_acg_fo)
@@ -1206,15 +1198,15 @@ class TileSet:
         self.log_bad_glue_source(len(bad_glues_acg_g), self.num_bg_acg_opt_g, self.num_bg_acg_orig_g, '|')
         new_bad_glues.extend(bad_glues_acg_fo)
         new_bad_glues.extend(bad_glues_acg_g)
-        
+
         if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt:
             if not CHECK_ONLY_ACG:
-                self.log_bad_glue_source(-1, self.num_bg_lb_opt, self.num_bg_lb_orig, '|') 
+                self.log_bad_glue_source(-1, self.num_bg_lb_opt, self.num_bg_lb_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_igp_opt, self.num_bg_igp_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_ogp_opt, self.num_bg_ogp_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_tp_opt, self.num_bg_tp_orig, '|')
             return new_bad_glues
-        
+
         if not CHECK_ONLY_ACG:
             bad_glues_lb = self.check_lattice_binding(temperature, len(new_bad_glues), num_bad_opt, threaded)
             if not hasattr(self, 'num_bg_lb_orig'): self.num_bg_lb_orig = len(bad_glues_lb)
@@ -1222,36 +1214,36 @@ class TileSet:
             self.num_bg_lb_most_recent = len(bad_glues_lb)
             self.log_bad_glue_source(len(bad_glues_lb), self.num_bg_lb_opt, self.num_bg_lb_orig, '|')
             new_bad_glues.extend(bad_glues_lb)
-                
+
             if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt:
                 self.log_bad_glue_source(-1, self.num_bg_igp_opt, self.num_bg_igp_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_ogp_opt, self.num_bg_ogp_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_tp_opt, self.num_bg_tp_orig, '|')
                 return new_bad_glues
-            
+
             bad_glues_igp = self.check_input_pairs(temperature, len(new_bad_glues), num_bad_opt, threaded)
             if not hasattr(self, 'num_bg_igp_orig'): self.num_bg_igp_orig = len(bad_glues_igp)
             if not hasattr(self, 'num_bg_igp_opt'): self.num_bg_igp_opt = -1
             self.num_bg_igp_most_recent = len(bad_glues_igp)
             self.log_bad_glue_source(len(bad_glues_igp), self.num_bg_igp_opt, self.num_bg_igp_orig, '|')
             new_bad_glues.extend(bad_glues_igp)
-                
+
             if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt:
                 self.log_bad_glue_source(-1, self.num_bg_ogp_opt, self.num_bg_ogp_orig, '|')
                 self.log_bad_glue_source(-1, self.num_bg_tp_opt, self.num_bg_tp_orig, '|')
                 return new_bad_glues
-              
+
             bad_glues_ogp = self.check_output_pairs(temperature, len(new_bad_glues), num_bad_opt, threaded)
             if not hasattr(self, 'num_bg_ogp_orig'): self.num_bg_ogp_orig = len(bad_glues_ogp)
             if not hasattr(self, 'num_bg_ogp_opt'): self.num_bg_ogp_opt = -1
             self.num_bg_ogp_most_recent = len(bad_glues_ogp)
             self.log_bad_glue_source(len(bad_glues_ogp), self.num_bg_ogp_opt, self.num_bg_ogp_orig, '|')
             new_bad_glues.extend(bad_glues_ogp)
-                
+
             if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt:
                 self.log_bad_glue_source(-1, self.num_bg_tp_opt, self.num_bg_tp_orig, '|')
                 return new_bad_glues
-              
+
             if check_tile_pairs:
                 bad_glues_tp = self.check_tile_pairs_heuristic(temperature, len(new_bad_glues), num_bad_opt, threaded_tile_pairs, weight_excess=TILE_PAIRS_HEURISTIC_WEIGHT_EXCESS)
                 bad_glues_tp = bad_glues_tp*TILE_PAIRS_HEURISTIC_WEIGHT_EXTEND
@@ -1260,7 +1252,7 @@ class TileSet:
                 self.num_bg_tp_most_recent = len(bad_glues_tp)
                 self.log_bad_glue_source(len(bad_glues_tp), self.num_bg_tp_opt, self.num_bg_tp_orig, '|')
                 new_bad_glues.extend(bad_glues_tp)
-        
+
         return new_bad_glues
 
 
@@ -1272,7 +1264,7 @@ class TileSet:
         if hasattr(self, 'num_bg_ogp_most_recent'): self.num_bg_ogp_opt = self.num_bg_ogp_most_recent
         if hasattr(self, 'num_bg_tp_most_recent'): self.num_bg_tp_opt = self.num_bg_tp_most_recent
         if hasattr(self, 'num_bg_lb_most_recent'): self.num_bg_lb_opt = self.num_bg_lb_most_recent
-        
+
     def local_search_end_assign(self, temperature, out_filename, mutually_exclusive_tilename_pairs, seqs_start):
         '''Find assignment of unassigned glues to ends that avoids unwanted
         secondary structure in tiles, and also that maintains orthogonality
@@ -1281,11 +1273,11 @@ class TileSet:
         permutations of ends.
 
         Uses stochastic local search heuristic.'''
-        print '\n' + '*'*79 + '\nnumber unique glues:' + str(len(set([tile.glue(direction) for tile in self.tiles for direction in directions])))
+        print '\n' + '*'*152 + '\nnumber unique glues:' + str(len(set([tile.glue(direction) for tile in self.tiles for direction in directions])))
 
-        threaded = THREADED 
+        threaded = THREADED
         threaded_tile_pairs = THREADED_TILE_PAIRS
-        
+
         self.num_bg_acg_opt_fo = -1
         self.num_bg_acg_opt_g = -1
         self.num_bg_tss_opt = -1
@@ -1297,62 +1289,64 @@ class TileSet:
         check_tile_pairs = (self.tiles[0].orth > 0 or self.tiles[0].orth_share > 0)
         if not check_tile_pairs:
             self.num_bg_tp_orig = -1
-        
+
         self.assign_initial_ends(temperature, seqs_start)
-        
+
+        print  '*'*152 + '\nformat of errors below indicating number of "bad glues" (glues causing problems meeting constraints) due to different sources: \n  <number in best glues found so far># <number in current iteration>/ <number in first iteration>\n' + '*'*152
+
         print 'Finding initial set of %s' % ('bad glues')
         start = time.time()
         bad_glues_opt = self.find_bad_glues(temperature=temperature, num_bad_opt=-1, threaded=threaded, threaded_tile_pairs=threaded_tile_pairs, check_tile_pairs=check_tile_pairs)
         end = time.time()
-        print '\n' + '*'*79 + ('\n** %.2f seconds for first call to find_bad_glue\n' % ((end - start))) + '*'*79 + '\n'
-        
+        print '\n' + '*'*152 + ('\n** %.2f seconds for first call to find_bad_glue' % ((end - start)))
+
         self.update_cached_num_bad_glues()
         self.write_tile_sequences_to_file(out_filename, len(bad_glues_opt), 0)
-        
+
         self.num_bad_glues_orig = len(bad_glues_opt)
-        
+
         if check_tile_pairs:
             self.tile_pair_name2energy_opt = self.tile_pair_name2energy_most_recent
-        
+
         iteration = 1
-        print '\n' + '*'*79 + '\nInitial number of bad glues %d:' % len(bad_glues_opt)
+        print '*'*152 + '\nInitial number of bad glues %d:' % len(bad_glues_opt)
         picked_ends = list(set(glue.canonical_end() for glue in self.glues()))
 
         while len(bad_glues_opt) > 0:
-            print '*'*113
+            print '*'*152
             iteration += 1
-            
+
             glue = random.choice(bad_glues_opt)# DW: pick a bad glue
             ec = glue.end_constraint # DW: get EC for picked bad glue
             old_end = glue.canonical_end() # DW: get currently assigned seq for picked bad glue
-            
+
             start=time.time()
             new_end_pos = select_new_end_pos(picked_ends, ec, temperature) # DW: randomly pick a new sequence
             end=time.time()
-            # print '%.2f seconds to pick new end' % ((end - start)) 
-            
+            # print '%.2f seconds to pick new end' % ((end - start))
+
             new_end = ec.ends[new_end_pos]
 
             # assign the new end
             glue.assign(new_end)
             self.tile_names_changed_from_opt = set(tile.name for tile in glue.tiles)
 #             print 'glue changed: {}\ntile names changed from opt: {}'.format(glue, ', '.join(self.tile_names_changed_from_opt))
-            
+
             start = time.time()
-            new_bad_glues = self.find_bad_glues(temperature=temperature, num_bad_opt=len(bad_glues_opt), 
+            new_bad_glues = self.find_bad_glues(temperature=temperature, num_bad_opt=len(bad_glues_opt),
                                                 threaded=threaded, threaded_tile_pairs=threaded_tile_pairs,
                                                 check_tile_pairs=check_tile_pairs)
             end = time.time()
             self.log_bad_glue_source(len(new_bad_glues), len(bad_glues_opt), self.num_bad_glues_orig, '')
-            print '\niteration %d; %.2f seconds' % (iteration, (end - start)) 
-            
+            print '\niteration %d; %.2f seconds' % (iteration, (end - start))
+
             num_worse = len(new_bad_glues) - len(bad_glues_opt)
 #             print 'bad glues: %d in optimal sequences; %d if change made' % (len(bad_glues_opt), len(new_bad_glues))
 #             print '%d bad glues previously' % len(bad_glues_opt)
 #             print '%d bad glues if change made' % len(new_bad_glues)
-            sys.stdout.flush()        
+            sys.stdout.flush()
             keep_change = (num_worse <= 0) # better glues (meaning, no worse): keep them!
-            
+
             if not keep_change:
                 glue.assign(old_end)
             else:
@@ -1361,25 +1355,25 @@ class TileSet:
                 bad_glues_opt = new_bad_glues
                 pos = picked_ends.index(old_end)
                 picked_ends[pos] = new_end
-                
+
                 self.update_cached_num_bad_glues()
-                
+
                 # update energies of bad tile pairs
-                # XXX: this must be done outside of check_tile_pairs_heuristic because we only want to update 
+                # XXX: this must be done outside of check_tile_pairs_heuristic because we only want to update
                 #      self.tile_pair_name2energy_opt if this is a new optimal sequence assignment
                 if check_tile_pairs:
                     for ((t1name,t2name), energy) in self.tile_pair_name2energy_most_recent.viewitems():
                         self.tile_pair_name2energy_opt[(t1name,t2name)] = energy
 #                     old_energy = self.tile_pair_name2energy_opt[(t1name,t2name)]
 #                     print '  updating tiles {:12s} and {:12s} from old energy {:2.2f} to new energy {:2.2f}'.format(t1name, t2name, old_energy, energy)
-                
+
                 self.write_tile_sequences_to_file(out_filename, len(bad_glues_opt), iteration)
-        
+
 
     def write_tile_sequences_to_file(self, out_filename, num_bad_glues, iteration):
         ec = self.tiles[0].glue('N').end_constraint
         with open(out_filename, 'w') as f:
-            print '** saving to %s with %d bad glues' % (out_filename, num_bad_glues)
+            print '** saving to %s with %d bad glues (weighted) **' % (out_filename, num_bad_glues)
             f.write('# saved at iteration %d\n' % iteration)
             #print 'num bad glues: {}'.format(len(bad_glues_opt))
             f.write('# %d bad glues\n' % num_bad_glues)
@@ -1400,9 +1394,9 @@ class TileSet:
 
     def assign_initial_ends(self, temperature, seqs_start):
         '''Assign ends to non-bound glues randomly.
-        
+
         It will remove used ends from ec2unused_ends, as well as shuffle those lists.'''
-        
+
         print 'Assigning initial ends to glues {}'.format('based on sequences file' if seqs_start else 'randomly')
         picked_ends = list(set(glue.canonical_end() for glue in self.glues_bound()))
         num_left = len(self.glues_unbound())
@@ -1411,7 +1405,7 @@ class TileSet:
             num_left -= 1
             if glue.assigned(): raise AssertionError("this shouldn't be reachable")
             ec = glue.end_constraint
-            
+
 #             start=time.time()
             if not seqs_start:
                 new_end_pos = select_new_end_pos(picked_ends, ec, temperature)
@@ -1421,16 +1415,16 @@ class TileSet:
                 seq = seqs_start[tilename][direction]
                 new_end_pos = ec.ends.index(seq)
 #             end=time.time()
-#             print 'time to find new end: %.2f' % (end-start) 
-            
+#             print 'time to find new end: %.2f' % (end-start)
+
             end = ec.ends[new_end_pos]
             glue.assign(end)
             last_pos = len(ec.ends) - 1
             ec.ends[new_end_pos], ec.ends[last_pos] = ec.ends[last_pos], ec.ends[new_end_pos]
             ec.ends.pop()
             picked_ends.append(end)
-        
-    
+
+
     def glues(self):
         '''Return all glues in all tiles in TileSet.'''
         return list(set(tile.glue(direction) for tile in self.tiles for direction in directions))
@@ -1438,7 +1432,7 @@ class TileSet:
     def glues_unbound(self):
         '''Return all unbound glues in all tiles in TileSet.'''
         return [glue for glue in self.glues() if not glue.bound()]
-    
+
     def glues_bound(self):
         '''Return all bound glues in all tiles in TileSet.'''
         return [glue for glue in self.glues() if glue.bound()]
@@ -1462,7 +1456,8 @@ def all_pairs_except(iterable, exclude):
     return itertools.ifilter(exclude_pack, itertools.combinations_with_replacement(iterable, 2))
 
 def eval_lattice_binding_energy(end1,end2,temperature):
-    return min(sd.binding(end1+end2,wc(end2)+'TTTTT'+wc(end1),temperature), sd.binding(end1+end2,wc(end2)+'AAAAA'+wc(end1),temperature))
+    return min(sd.binding(end1+end2,wc(end2)+'TTTTT'+wc(end1),temperature),
+               sd.binding(end1+end2,wc(end2)+'AAAAA'+wc(end1),temperature))
 
 def eval_lattice_binding_energies(end_pairs, temperature, threaded):
     if threaded:
@@ -1473,10 +1468,10 @@ def eval_lattice_binding_energies(end_pairs, temperature, threaded):
     return energies
 
 def eval_colocated_end_pair(end1, end2, temperature):
-#   return max(sd.hairpin(end1+end2, temperature), sd.hairpin(end1+'T'*4+end2, temperature)) 
-    return max(sd.hairpin(end1+end2, temperature), 
-               min(sd.hairpin(end1+'T'*4+end2, temperature), 
-                   sd.hairpin(end1+'A'*4+end2, temperature))) 
+#   return max(sd.hairpin(end1+end2, temperature), sd.hairpin(end1+'T'*4+end2, temperature))
+    return max(sd.hairpin(end1+end2, temperature),
+               min(sd.hairpin(end1+'T'*4+end2, temperature),
+                   sd.hairpin(end1+'A'*4+end2, temperature)))
 
 def eval_input_end_pair(end1, end2, temperature):
     return max(sd.hairpin(end1+end2, temperature))
@@ -1488,13 +1483,13 @@ def eval_colocated_end_pairs(end_pairs, temperature, threaded):
     else:
         energies = [eval_colocated_end_pair(end1, end2, temperature) for end1, end2 in end_pairs]
     return energies
-    
+
 def share_complementary_glues(t1, t2):
     for direction in directions:
         if t1.glue(direction) == t2.glue(opposite(direction)):
             return True
     return False
-    
+
 LOG_BAD_END = False
 def log_bad_end(reason):
     if LOG_BAD_END:
@@ -1505,24 +1500,24 @@ def select_new_end_pos(picked_ends, ec, temperature, threaded=True):
     num_searched = 0
     if LOG_BAD_END: sys.stdout.write('.')
     if LOG_BAD_END: sys.stdout.flush()
-    
+
     picked_ends_len = dict()
     picked_ends_len[10] = [end for end in picked_ends if len(end) == 10]
     picked_ends_len[11] = [end for end in picked_ends if len(end) == 11]
-    
+
     for end_pos in random_iter(xrange(len(ec.ends))):
         end = ec.ends[end_pos]
         num_searched += 1
         if wc(end) in picked_ends:
-            log_bad_end('wc_') 
+            log_bad_end('wc_')
             continue
         if end in picked_ends:
-            log_bad_end('used_') 
+            log_bad_end('used_')
             continue
-        if ec.lowPF > 0 and ec.highPF > 0 and not sd.domain_equal_strength(end,temperature,ec.lowPF,ec.highPF): 
+        if ec.lowPF > 0 and ec.highPF > 0 and not sd.domain_equal_strength(end,temperature,ec.lowPF,ec.highPF):
             log_bad_end('eq_')
             continue
-        if ec.domain_indv_sec_struct > 0 and not sd.domain_no_sec_struct(end,temperature,ec.domain_indv_sec_struct,threaded): 
+        if ec.domain_indv_sec_struct > 0 and not sd.domain_no_sec_struct(end,temperature,ec.domain_indv_sec_struct,threaded):
             log_bad_end('idv%.1f,%.1f_' % (sd.hairpin(end,temperature), sd.hairpin(sd.wc(end),temperature)))
             continue
         if ec.domain_pair_sec_struct > 0:
@@ -1554,7 +1549,7 @@ def hamming(s1,s2):
         return sum(c1 != c2 for c1, c2 in itertools.izip(s1, s2))
     if len(s1) > len(s2): s1,s2 = s2,s1
     excess = len(s2) - len(s1)
-    return min( sum(c1 != c2 for c1, c2 in itertools.izip(s1, s2[start:start+len(s1)])) 
+    return min( sum(c1 != c2 for c1, c2 in itertools.izip(s1, s2[start:start+len(s1)]))
                 for start in range(excess+1))
 
 def hamming_with_wc(end1,end2):
@@ -1562,7 +1557,7 @@ def hamming_with_wc(end1,end2):
 
 def _eval_pairs_hamming(end, picked_ends, hamming_thres):
     return min(hamming_with_wc(end, picked_end) for picked_end in picked_ends) >= hamming_thres
-    
+
 def _eval_pairs(endpairs, temperature, parallel):
     if parallel:
         results = [global_thread_pool.apply_async(sd.binding, args=(end1, end2, temperature)) for (end1,end2) in endpairs]
@@ -1576,7 +1571,7 @@ def _eval_pairs(endpairs, temperature, parallel):
 def eval_end_pair(end1,end2,temperature,parallel=True):
     end1wc = wc(end1)
     end2wc = wc(end2)
-    if end1 == end2:                
+    if end1 == end2:
         energy1_2, energy1wc_2wc = _eval_pairs([(end1,end2), (end1wc, end2wc)], temperature, parallel)
         energy1wc_2 = energy1_2wc = 0.0
     elif end1 == end2wc:
@@ -1588,19 +1583,19 @@ def eval_end_pair(end1,end2,temperature,parallel=True):
 
 def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter_code_exceptions, user_assigned_glue_sequences):
     '''Filter ends that can be quickly filtered using NumPy.
-    
+
     Place a member variable called ends into each EndConstraint, a list of
-    potential ends satisfying the constraints that can be quickly checked. 
-    
+    potential ends satisfying the constraints that can be quickly checked.
+
     If three_letter_code is True, then parity 1 tiles will be from the alphabet
     ('A','C','T') and parity 0 tiles will be from the alphabet ('A','G','T')'''
-    forbidden_subs = ['%s%s%s%s' % (a, b, c, d) for a in ('G', 'C') 
-                                                for b in ('G', 'C') 
-                                                for c in ('G', 'C') 
+    forbidden_subs = ['%s%s%s%s' % (a, b, c, d) for a in ('G', 'C')
+                                                for b in ('G', 'C')
+                                                for c in ('G', 'C')
                                                 for d in ('G', 'C')]
     all_lengths = { ec.length for ec in end_constraints }
     ends_of_length = { length:dsd.DNASeqList(length=length) for length in all_lengths }
-    
+
     for (length, ends) in ends_of_length.viewitems():
 #         ec = [ec for ec in end_constraints if ec.length == length][0]
 #         ends_of_length[length] = ends
@@ -1643,30 +1638,30 @@ def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter
                 base = 'A'
                 biotin_canonical_pos = ec.length - 1 - biotin_pos
                 canonical_direction = opposite(ec.biotin_direction)
-            print ('Removing length-%d domains lacking %s at pos %d on %s-facing domain\n  (to place biotin at position %d on %s-facing domain)' 
+            print ('Removing length-%d domains lacking %s at pos %d on %s-facing domain (to place biotin at position %d on %s-facing domain)'
                   % (ec.length,base, biotin_canonical_pos, canonical_direction, biotin_pos, ec.biotin_direction))
             ends = ends.filter_base_at_pos(biotin_canonical_pos, base)
 #         print 'before filtering based on energy: %d' % ends.numseqs
         ends = ends.filter_energy(ec.lowDG, ec.highDG, temperature)
-        print ('NN binding energy: %d length-%d seqs in (%.1f,%.1f) %s' 
-               % (ends.numseqs, ec.length, ec.lowDG, ec.highDG, 
+        print ('NN binding energy: %d length-%d seqs in (%.1f,%.1f) %s'
+               % (ends.numseqs, ec.length, ec.lowDG, ec.highDG,
                   '' if not ec.biotin_direction else '[biotin pos ' + str(biotin_pos) + ']'))
         ec.ends = ends.toList()
-        
-        sys.stdout.write('Removing from the set of length-{} domains, if they are present, the following domains that are already assigned to glues by user: '.format(length) + ', '.join(s for s in uags[length]) +'\n')
-        #print str(len(ec.ends))+ ' number ends before' 
-        tmp_ends_before = ec.ends    
-        ec.ends = [end for end in ec.ends if end not in uags[ec.length]]  
+
+        sys.stdout.write('Removing from the set of length-{} domains, if they are present, the following domains that are already assigned to glues by user: '.format(length) + ', '.join(s for s in uags[length]) +'. ')
+        #print str(len(ec.ends))+ ' number ends before'
+        tmp_ends_before = ec.ends
+        ec.ends = [end for end in ec.ends if end not in uags[ec.length]]
         if len(ec.ends) == 0:
             raise ValueError('error: no ends of length %d found matching requested parameters' % ec.length)
-        print str(len(ec.ends))+ ' number ends after' 
-        print 'Ends removed:' + str( set(tmp_ends_before).difference(set(ec.ends)) )
-    
+        print str(len(ec.ends))+ ' ends after removal of: ' + str(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))
+           + ' None'*(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))=='') )
+
     #print 'Yo....'
     #print ec.ends[:10]
     #print uags[10] + uags[11]
     #print 'check if all ends removed:' + str( set(ec.ends).intersection(set(uags[10] + uags[11])) )
-    
+
 
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
@@ -1677,7 +1672,7 @@ def grouper(iterable, n, fillvalue=None):
 def alphabet_to_use(three_letter_code, parity, direction):
     '''Return tuple of alphabet to be used for glue in given direction on tile of
     given parity.
-    
+
     Note that this refers to the alphabet used for the CANONICAL direction, which
     may be the opposite of direction.'''
     if not parity in (0,1):
@@ -1690,48 +1685,48 @@ def alphabet_to_use(three_letter_code, parity, direction):
         return ('A','C','T')
     else:
         return ('A','G','T')
-    
+
 def read_tiles_from_file(filename):
     '''Example of format:
-    
+
     # "global" energy interval for glues (not set by glue_strength)
     lowDG = 9.8
     highDG = 10.2
-    
+
     # temperature at which to evaluate energies
     temperature = 53.0
-    
+
     # threshold for allowed energy of secondary structure
     tile_sec_struct = 2.0
-    
+
     tile_pair_sec_struct = 7.0
-    
+
     # threshold for allowed energy of interaction between orthogonal glues
     # that might be co-located during a strength-1 binding event
     orth_algorithmic_conflict = 2.0
-    
+
     # threshold for allowed energy of interaction between orthogonal glues
     # that will not be co-located during a strength-1 binding event
     orth_any = 4.0
-    
+
     # orth_any is worst-case; all pairs of sequences must be below
     # orth_any_ave is average orthogonality of proposed new domain with all
     # currently used domains
     orth_any_ave = 3.0
-    
+
     # this is the limit on individual secondary structure of a single domain
     domain_indv_sec_struct = 0.8
-    
+
     # this is the limit on secondary structure of any two domains concatenated
     domain_pair_sec_struct = 1.2
-    
+
     # if three_letter_code == true, then parity 1 tiles will use a 3-letter code
     #  A,C,T, and parity 0 tiles will use A,G,T
     three_letter_code = False
-    
-    
+
+
     endGC = True
-    
+
     # XOR tiles
     tiles = [ { 'name':'xor00_0', 'N':"0",  'W':"0",  'S':"0'", 'E':"0'", 'parity':0 },
               { 'name':'xor01_0', 'N':"0",  'W':"1",  'S':"1'", 'E':"1'", 'parity':0 },
@@ -1741,25 +1736,25 @@ def read_tiles_from_file(filename):
               { 'name':'xor01_1', 'N':"0'", 'W':"1'", 'S':"1",  'E':"1",  'parity':1 },
               { 'name':'xor10_1', 'N':"1'", 'W':"0'", 'S':"1",  'E':"1",  'parity':1 },
               { 'name':'xor11_1', 'N':"1'", 'W':"1'", 'S':"0",  'E':"0",  'parity':1 } ]
-    
+
     # glues that need different strengths from lowDG and highDG
     glue_strength_constraints = [
-                                 ( 10.5,11.5, [ ("0'","NS") ] ), 
-                                 (  9.5, 9.8, [ ("0", "NS") ] ) 
+                                 ( 10.5,11.5, [ ("0'","NS") ] ),
+                                 (  9.5, 9.8, [ ("0", "NS") ] )
                                 ]
-    # glues that need biotins  
+    # glues that need biotins
     # (hence must put an internal biotinylated dT in end)
     glue_biotins = [ ("1","S") ]
-    
+
     # sequences to bind to glues
     glue_sequences = [ ("0",  "W", "TTGAGGAGAG"),
                        ("0'", "W", "GTGTAGTAGGC")]
-    
+
     '''
     import imp
     mod = imp.load_source('',filename)
-    
-    lowDG = mod.lowDG 
+
+    lowDG = mod.lowDG
     highDG = mod.highDG
     temperature = mod.temperature
     tile_sec_struct = mod.tile_sec_struct
@@ -1782,7 +1777,7 @@ def read_tiles_from_file(filename):
     user_assigned_glue_sequences = mod.glue_sequences
 
     detect_nondeterminism = mod.detect_nondeterminism if hasattr(mod, "detect_nondeterminism") else True
-    
+
     glue_strength = collections.defaultdict(lambda: (lowDG, highDG))
     if hasattr(mod, 'glue_strength_constraints'):
         for (lowDG_e,highDG_e,glues) in mod.glue_strength_constraints:
@@ -1790,23 +1785,23 @@ def read_tiles_from_file(filename):
                 if axis not in ['NS','EW']:
                     raise ValueError('axis is {}; should be one of "NS" or "EW"'.format(axis))
                 glue_strength[(label,axis)] = (lowDG_e,highDG_e)
-                
+
     glue_biotin = collections.defaultdict(lambda: None)
     if hasattr(mod, 'glue_biotins'):
         for (label,direction) in mod.glue_biotins:
             if direction not in directions: raise ValueError('"%s" is not a valid direction' % direction)
             axis = direction2axis(direction)
             if (label,axis) in glue_biotin:
-                raise ValueError('error: glues %s on axis %s already assigned a biotin direction of %s \n cannot assign multiple directions' 
+                raise ValueError('error: glues %s on axis %s already assigned a biotin direction of %s \n cannot assign multiple directions'
                                  % (label, axis, glue_biotin[(label,axis)]))
             else:
                 glue_biotin[(label,axis)] = direction
-    
+
 #     from pprint import pprint
 #     pprint('glue_biotin: %s' % glue_biotin)
-    
+
     dna_alphabet_pattern = re.compile('(A|C|G|T)+')
-    
+
     glue_seq = dict()
     if hasattr(mod, 'glue_sequences'):
         for (label,direction,seq) in mod.glue_sequences:
@@ -1816,24 +1811,24 @@ def read_tiles_from_file(filename):
             if not dna_alphabet_pattern.match(seq):
                 raise ValueError('{} is not a DNA string'.format(seq))
             glue_seq[(label, axis)] = seq
-    
+
     if hasattr(mod, 'mutually_exclusive_tilename_pairs'):
         mutually_exclusive_tilename_pairs = mod.mutually_exclusive_tilename_pairs
     else:
         mutually_exclusive_tilename_pairs = []
-    
+
     if not hasattr(mod, 'tiles'):
         raise ValueError('''must define a list of dicts called tiles, e.g.,
-        
+
   [ { 'name':'xor00_0', 'N':"0",  'W':"0",  'S':"0'", 'E':"0'", 'parity':0 },
     { 'name':'xor01_0', 'N':"0",  'W':"1",  'S':"1'", 'E':"1'", 'parity':0 } ]''')
-    
-        
+
+
     tile_dicts = mod.tiles
     tiles = []
-    
+
     print 'processing read tile descriptions'
-    
+
     for tile_dict in tile_dicts:
         n_label = tile_dict['N']
         s_label = tile_dict['S']
@@ -1841,20 +1836,20 @@ def read_tiles_from_file(filename):
         w_label = tile_dict['W']
         name = tile_dict['name']
         parity = tile_dict['parity']
-        
+
         glues = dict()
         for (label,direction) in zip([n_label,s_label,e_label,w_label] , ['N','S','E','W']):
             axis = direction2axis(direction)
             lowDG_e,highDG_e = glue_strength[(label,axis)]
             biotin_direction = glue_biotin[(label,axis)]
             length = len_end(direction, parity)
-            ec = EndConstraint.factory(lowDG=lowDG_e, highDG=highDG_e, 
+            ec = EndConstraint.factory(lowDG=lowDG_e, highDG=highDG_e,
                 length=length, biotin_direction=biotin_direction, endGC=endGC, endAT=endAT,
-                orth_any=orth_any, orth_any_ave=orth_any_ave, 
-                orth_algorithmic_conflict=orth_algorithmic_conflict, orth_colocated=orth_colocated, 
-                domain_indv_sec_struct=domain_indv_sec_struct, 
-                domain_pair_sec_struct=domain_pair_sec_struct, domain_pair_sec_struct_ave=domain_pair_sec_struct_ave, 
-                tile_sec_struct=tile_sec_struct, 
+                orth_any=orth_any, orth_any_ave=orth_any_ave,
+                orth_algorithmic_conflict=orth_algorithmic_conflict, orth_colocated=orth_colocated,
+                domain_indv_sec_struct=domain_indv_sec_struct,
+                domain_pair_sec_struct=domain_pair_sec_struct, domain_pair_sec_struct_ave=domain_pair_sec_struct_ave,
+                tile_sec_struct=tile_sec_struct,
                 hamming = hamming,
                 orth_algorithmic_conflict_generalized = orth_algorithmic_conflict_generalized,
                 lattice_binding_lower_threshold=lattice_binding_lower_threshold)
@@ -1870,8 +1865,8 @@ def read_tiles_from_file(filename):
                 if direction == biotin_direction:
                     biotin_pos = biotin_end_pos(direction, parity)
                     if end[biotin_pos] != 'T':
-                        raise ValueError('to include internal biotin on glue %s in direction %s, base at position %d must be T, but instead is %s' % 
-                                 (glue, direction, biotin_pos, end[biotin_pos]))    
+                        raise ValueError('to include internal biotin on glue %s in direction %s, base at position %d must be T, but instead is %s' %
+                                 (glue, direction, biotin_pos, end[biotin_pos]))
         if 'tile_sec_struct' in tile_dict:
             tile_sec_struct_local = tile_dict['tile_sec_struct']
         else:
@@ -1886,34 +1881,34 @@ def read_tiles_from_file(filename):
             tile_orth_share_local = tile_orth_share
         tile = Tile(name=name, n=glues['N'], s=glues['S'], e=glues['E'], w=glues['W'], parity=parity, sec_struct=tile_sec_struct_local, orth=tile_orth_local, orth_share=tile_orth_share_local)
         tiles.append(tile)
-        
+
     for tile in tiles:
         for glue in [tile.glue(direction) for direction in directions]:
             if tile not in glue.tiles:
                 raise ValueError('ERROR: tile {} not in glue.tiles for glue={}'.format(tile.name, glue.label))
-        
+
     print 'done processing tiles'
-        
+
     tileset = TileSet(tiles, detect_nondeterminism=detect_nondeterminism, mutually_exclusive_tilename_pairs=mutually_exclusive_tilename_pairs)
-    
+
     print 'done creating tile set'
-    
+
     if hasattr(mod, 'glue_biotins'):
         for (label,direction) in mod.glue_biotins:
             if label not in [glue.label for glue in tileset.glues()]:
                 raise ValueError('%s is not a valid glue label' % label)
-        
-    if hasattr(mod, 'glue_strength_constraints'):    
+
+    if hasattr(mod, 'glue_strength_constraints'):
         for (lowDG,highDG,labels) in mod.glue_strength_constraints:
             for (label,axis) in labels:
                 if label not in [glue.label for glue in tileset.glues()]:
                     raise ValueError('%s is not a valid glue label' % label)
-    
+
     if hasattr(mod, 'glue_sequences'):
         for (label,direction,seq) in mod.glue_sequences:
             if label not in [glue.label for glue in tileset.glues()]:
                 raise ValueError('%s is not a valid glue label' % label)
-            
+
     tile_names = [tile.name for tile in tiles]
     if hasattr(mod, 'mutually_exclusive_tilename_pairs'):
         for t1,t2 in mod.mutually_exclusive_tilename_pairs:
@@ -1921,9 +1916,9 @@ def read_tiles_from_file(filename):
                 raise ValueError('%s is not a valid tile name' % t1)
             if t2 not in tile_names:
                 raise ValueError('%s is not a valid tile name' % t2)
-    
+
     return tileset, temperature, three_letter_code, three_letter_code_exceptions, mutually_exclusive_tilename_pairs, user_assigned_glue_sequences
-    
+
 def read_starting_seqs(seqs_filename):
     seqs_start = dict()
     with open(seqs_filename, 'r') as f:
@@ -1937,7 +1932,7 @@ def read_starting_seqs(seqs_filename):
             n = n.replace('/iBiodT/', 'T')
             e = e.replace('/iBiodT/', 'T')
             seqs_start[name] = {'S':s, 'W':w, 'N':n, 'E':e}
-        
+
     return seqs_start
 
 import argparse
@@ -1956,26 +1951,23 @@ if __name__ == "__main__":
     in_filename = args['params']
     out_filename = args['out']
     seqs_filename = args.get('seqs')
-    
+
     seqs_start = read_starting_seqs(seqs_filename) if seqs_filename else None
-    
+
     print 'number of processes in global thread pool: %d' % global_thread_pool._processes
-        
+
     print 'Reading tiles from %s' % in_filename
-    
+
     tileset, temperature, tlc, tlce, mutually_exclusive_tilename_pairs, usgs = read_tiles_from_file(in_filename)
-    
+
     prefilter_ends(tileset.end_constraints_unbound(), temperature, tlc, tlce, usgs)
-    
-    tileset.local_search_end_assign(temperature=temperature, 
+
+    tileset.local_search_end_assign(temperature=temperature,
                                     out_filename=out_filename,
                                     mutually_exclusive_tilename_pairs=mutually_exclusive_tilename_pairs,
                                     seqs_start=seqs_start)
-    
+
     print
     for tile in tileset.tiles:
         #print '*'*79
         print '%5s %s' % (tile, tile.sequence_spaced(include_biotins=True))
-    
-
-    
