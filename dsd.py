@@ -1,3 +1,10 @@
+'''
+Library for doing sequence design that can be expressed as linear algebra
+operations for rapid processing by numpy (e.g., generating all DNA sequences
+of a certain length and calculating all their full duplex binding energies
+in the nearest neighbor model and filtering those outside a given range).
+'''
+
 from __future__ import division
 import numpy as np
 import sst_dsd
@@ -42,38 +49,38 @@ def arr2seq(arr):
 
 def makeArrayWithAllDNASeqs(length,bases=('A','C','G','T')):
     '''Return 2D numpy array with all DNA sequences of given length in
-    lexicographic order. Bases contains bases to be used: ('A','C','G','T') by 
+    lexicographic order. Bases contains bases to be used: ('A','C','G','T') by
     default, but can be set to a subset of these.
 
     Uses the encoding described in the documentation for DNASeqList. The result
     is a 2D array, where each row represents a DNA sequence, and that row
     has one byte per base.'''
-    
+
     if not set(bases) <= set(('A','C','G','T')):
         raise ValueError("bases must be a subset of ('A','C','G','T'); cannot be %s" % bases)
     if len(bases) == 0:
         raise ValueError('bases cannot be empty')
-    
+
     numbases = len(bases)
     numseqs = numbases**length
-    
+
 #     shift = np.arange(2*(length-1), -1, -2)
 #     nums = np.repeat(np.arange(numseqs), length)
 #     nums2D = nums.reshape([numseqs, length])
 #     shifts = np.tile(0b11 << shift, numseqs)
 #     shifts2D = shifts.reshape([numseqs, length])
 #     arr = (shifts2D & nums2D) >> shift
-    
+
     # the former code took up too much memory (using int32 or int64)
     # the following code makes sure it's 1 byte per base
     powers_numbases = [numbases**k for k in range(length)]
 #         bases = np.array([_base2bits['A'], _base2bits['C'], _base2bits['G'], _base2bits['T']], dtype=np.ubyte)
     basebits = map(lambda base: _base2bits[base], bases)
     bases = np.array(basebits, dtype=np.ubyte)
-    
+
     list_of_arrays = False
-    if list_of_arrays: 
-        # this one seems to be faster but take more memory, probably because
+    if list_of_arrays:
+        # this one seems to be faster but takes more memory, probably because
         # just before the last command there are two copies of the array
         # in memory at once
         columns = []
@@ -82,12 +89,12 @@ def makeArrayWithAllDNASeqs(length,bases=('A','C','G','T')):
         arr = np.vstack(columns).transpose()
     else:
         # this seems to be slightly slower but takes less memory, since it
-        # allocates only the final array, plus one extra column of that 
+        # allocates only the final array, plus one extra column of that
         # array at a time
         arr = np.empty((numseqs, length), dtype=np.ubyte)
         for i,j,c in zip(reversed(powers_numbases), powers_numbases, range(length)):
             arr[:,c] = np.tile(np.repeat(bases, i), j)
-    
+
     return arr
 
 # from http://www.bogotobogo.com/python/python_longest_common_substring_lcs_algorithm_generalized_suffix_tree.php
@@ -115,14 +122,14 @@ def lcs(S,T):
 
 #@lru_cache(maxsize=10000000)
 def longest_common_substring(a1, a2, vectorized=True):
-    '''Return start and end indices (a1start, a2start, length) of longest common 
+    '''Return start and end indices (a1start, a2start, length) of longest common
     substring (subarray) of 1D arrays a1 and a2.'''
     assert len(a1.shape) == 1
     assert len(a2.shape) == 1
     counter = np.zeros(shape=(len(a1)+1,len(a2)+1), dtype=np.int)
     a1idx_longest = a2idx_longest = -1
     len_longest = 0
-    
+
     if vectorized:
         for i1 in range(len(a1)):
             idx = (a2 == a1[i1])
@@ -147,10 +154,10 @@ def longest_common_substring(a1, a2, vectorized=True):
 
 #@lru_cache(maxsize=10000000)
 def longest_common_substrings_singlea1(a1, a2s):
-    '''Return start and end indices (a1starts, a2starts, lengths) of longest common 
+    '''Return start and end indices (a1starts, a2starts, lengths) of longest common
     substring (subarray) of 1D array a1 and rows of 2D array a2s.
-     
-    If length[i]=0, then a1starts[i]=a2starts[i]=0 (not -1), so be sure to check 
+
+    If length[i]=0, then a1starts[i]=a2starts[i]=0 (not -1), so be sure to check
     length[i] to see if any substrings actually matched.'''
     assert len(a1.shape) == 1
     assert len(a2s.shape) == 2
@@ -158,42 +165,42 @@ def longest_common_substrings_singlea1(a1, a2s):
     len_a1 = len(a1)
     len_a2 = a2s.shape[1]
     counter = np.zeros(shape=(len_a1+1, numa2s, len_a2+1), dtype=np.int)
-     
+
     for i1 in range(len(a1)):
         idx = (a2s == a1[i1])
         idx_shifted = np.insert(idx, 0, np.zeros(numa2s, dtype=np.bool), axis=1)
         counter[i1+1,idx_shifted] = counter[i1,idx]+1
-     
+
     counter = np.swapaxes(counter, 0, 1)
- 
+
     counter_flat = counter.reshape(numa2s, (len_a1+1)*(len_a2+1))
     idx_longest_raveled = np.argmax(counter_flat, axis=1)
     len_longest = counter_flat[np.arange(counter_flat.shape[0]), idx_longest_raveled]
-     
+
     idx_longest = np.unravel_index(idx_longest_raveled, dims=(len_a1+1, len_a2+1))
     a1idx_longest = idx_longest[0] - len_longest
     a2idx_longest = idx_longest[1] - len_longest
-    
+
     return (a1idx_longest, a2idx_longest, len_longest)
 
 #@lru_cache(maxsize=10000000)
 def longest_common_substrings_product(a1s, a2s):
-    '''Return start and end indices (a1starts, a2starts, lengths) of longest common 
+    '''Return start and end indices (a1starts, a2starts, lengths) of longest common
     substring (subarray) of each pair in the cross product of rows of a1s and a2s.
-    
-    If length[i]=0, then a1starts[i]=a2starts[i]=0 (not -1), so be sure to check 
+
+    If length[i]=0, then a1starts[i]=a2starts[i]=0 (not -1), so be sure to check
     length[i] to see if any substrings actually matched.'''
     numa1s = a1s.shape[0]
     numa2s = a2s.shape[0]
     a1s_cp = np.repeat(a1s, numa2s, axis=0)
     a2s_cp = np.tile(a2s, (numa1s, 1))
-    
+
     a1idx_longest, a2idx_longest, len_longest = _longest_common_substrings_pairs(a1s_cp, a2s_cp)
-    
+
     a1idx_longest = a1idx_longest.reshape(numa1s, numa2s)
     a2idx_longest = a2idx_longest.reshape(numa1s, numa2s)
     len_longest = len_longest.reshape(numa1s, numa2s)
-    
+
     return (a1idx_longest, a2idx_longest, len_longest)
 
 def pair_index(n):
@@ -204,32 +211,32 @@ def _longest_common_substrings_pairs(a1s, a2s):
     assert len(a1s.shape) == 2
     assert len(a2s.shape) == 2
     assert a1s.shape[0] == a2s.shape[0]
-    
+
     numpairs = a1s.shape[0]
-    
+
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
-    
+
     counter = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=np.int)
-    
+
     for i1 in range(len_a1):
         a1s_cp_col = a1s[:,i1].reshape(numpairs,1)
         a1s_cp_col_rp = np.repeat(a1s_cp_col, len_a2, axis=1)
-        
+
         idx = (a2s == a1s_cp_col_rp)
         idx_shifted = np.hstack([np.zeros(shape=(numpairs,1), dtype=np.bool), idx])
         counter[i1+1,idx_shifted] = counter[i1,idx]+1
-    
+
     counter = np.swapaxes(counter, 0, 1)
 
     counter_flat = counter.reshape(numpairs, (len_a1+1)*(len_a2+1))
     idx_longest_raveled = np.argmax(counter_flat, axis=1)
     len_longest = counter_flat[np.arange(counter_flat.shape[0]), idx_longest_raveled]
-    
+
     idx_longest = np.unravel_index(idx_longest_raveled, dims=(len_a1+1, len_a2+1))
     a1idx_longest = idx_longest[0] - len_longest
     a2idx_longest = idx_longest[1] - len_longest
-    
+
     return (a1idx_longest, a2idx_longest, len_longest)
 
 def longest_common_substrings_all_pairs_strings(seqs1, seqs2):
@@ -243,27 +250,27 @@ def _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s,
     assert len(a1s.shape) == 2
     assert len(a2s.shape) == 2
     assert a1s.shape[0] == a2s.shape[0]
-    
+
     numpairs = a1s.shape[0]
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
     counter = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=np.int)
     energies = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=np.float)
-    
+
 #     if not loop_energies:
     loop_energies = calculate_loop_energies(T)
-    
+
     prev_match_idxs = prev_match_shifted_idxs = None
-    
+
     for i1 in range(len_a1):
         a1s_col = a1s[:,i1].reshape(numpairs,1)
         a1s_col_rp = np.repeat(a1s_col, len_a2, axis=1)
-        
+
         # find matching chars and extend length of substring
         match_idxs = (a2s == a1s_col_rp)
         match_shifted_idxs = np.hstack([np.zeros(shape=(numpairs,1), dtype=np.bool), match_idxs])
         counter[i1+1,match_shifted_idxs] = counter[i1,match_idxs] + 1
-        
+
         if i1 > 0:
             # calculate energy if matching substring has length > 1
             prev_bases = a1s[:,i1-1]
@@ -276,13 +283,13 @@ def _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s,
             prev_match_shifted_shifted_idxs = np.hstack([np.zeros(shape=(numpairs,1), dtype=np.bool), prev_match_shifted_idxs])[:,:-1]
             both_match_shifted_idxs = match_shifted_idxs & prev_match_shifted_shifted_idxs
             energies[i1+1,both_match_shifted_idxs] = energies[i1,both_match_idxs] + latest_energies_rp[both_match_idxs]
-            
+
 #         prev_match_idxs = match_idxs
         prev_match_shifted_idxs = match_shifted_idxs
-    
+
     counter = counter.swapaxes(0, 1)
     energies = energies.swapaxes(0, 1)
-    
+
     return counter, energies
 
 def weighted_energies_common_substrings(seqs1, seqs2, T):
@@ -291,20 +298,20 @@ def weighted_energies_common_substrings(seqs1, seqs2, T):
     numpairs = a1s.shape[0]
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
-    
+
     counter, energies = _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s, T)
-    
+
     counter_shift_upleft = np.roll(np.roll(counter, -1, axis=1), -1, axis=2)
     not_maximal_substring_idxs = (counter == 0) | (counter_shift_upleft != 0)
     energies[not_maximal_substring_idxs] = 0
     energies_flat = energies.reshape((numpairs, (len_a1+1)*(len_a2+1)))
     weighted_energies = np.zeros(numpairs, dtype=np.float)
-    
+
     raise NotImplementedError()
-    
+
     return list(weighted_energies)
 
-import math 
+import math
 
 def internal_loop_penalty(n, T):
     return 1.5 + (2.5*0.002*T*math.log(1+n))
@@ -313,57 +320,57 @@ def _mfes_array(a1s, a2s, T):
     assert len(a1s.shape) == 2
     assert len(a2s.shape) == 2
     assert a1s.shape[0] == a2s.shape[0]
-    
+
     numpairs = a1s.shape[0]
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
     d = np.zeros(shape=(len_a1+1, len_a2+1, numpairs), dtype=np.int)
     energies = np.zeros(shape=(len_a1+1, len_a2+1, numpairs), dtype=np.float)
-    
+
 #     if not loop_energies:
     loop_energies = calculate_loop_energies(T)
-    
+
     for i1 in range(len_a1):
         for i2 in range(len_a2):
             recursive_energy_1 = energies[i1-1,i2,:] - internal_loop_penalty( d[i1-1,i2,:] + 1, T )
             recursive_energy_2 = energies[i1,i2-1,:] - internal_loop_penalty( d[i1,i2-1,:] + 1, T )
             match_idxs = (a1s[i1,i2,:] == a2s[i1,i2,:])
-            
-    
+
+
     return energies
 
 def mfes(seqs1, seqs2, T):
     a1s = seqs2arr(seqs1)
     a2s = seqs2arr(seqs2)
     a2swc = wc(a2s)
-    
+
     energies = _mfes_array(a1s, a2swc, T)
-    
+
     return list(energies)
 
 def _strongest_common_substrings_all_pairs(a1s, a2s, T):
     numpairs = a1s.shape[0]
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
-    
+
     counter, energies = _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s, T)
-    
+
     counter_flat = counter.reshape(numpairs, (len_a1+1)*(len_a2+1))
     energies_flat = energies.reshape(numpairs, (len_a1+1)*(len_a2+1))
-    
+
     idx_strongest_raveled = np.argmax(energies_flat, axis=1)
     len_strongest = counter_flat[np.arange(counter_flat.shape[0]), idx_strongest_raveled]
     energy_strongest = energies_flat[np.arange(counter_flat.shape[0]), idx_strongest_raveled]
-    
+
     idx_strongest = np.unravel_index(idx_strongest_raveled, dims=(len_a1+1, len_a2+1))
     a1idx_strongest = idx_strongest[0] - len_strongest
     a2idx_strongest = idx_strongest[1] - len_strongest
-    
+
     return (a1idx_strongest, a2idx_strongest, len_strongest, energy_strongest)
-    
+
 
 def strongest_common_substrings_all_pairs_string(seqs1, seqs2, T):
-    '''For Python strings representing DNA; checks for reverse complement matches 
+    '''For Python strings representing DNA; checks for reverse complement matches
     rather than direct matches, and evaluates nearest neighbor energy, returning
     indices lengths, and energies of strongest complementary substrings.'''
     a1s = seqs2arr(seqs1)
@@ -383,9 +390,9 @@ def binding_heuristic(seq1, seq2, num_subs=3, len_subs=4):
     between seq1 and seq2, which are Python strings."""
     all_subs = makeArrayWithAllDNASeqs(len_subs)
     raise NotImplementedError()
-    
+
 def binding_heuristic_numpy(seq, seqs, num_subs=3, len_subs=4):
-    """Returns array of booleans indicating whether 
+    """Returns array of booleans indicating whether
     binding_heuristic(seq,seq[i],num_subs,len_subs) for each seq[i] in seqs (a
     DNASeqList), where seq is a numpy array of integers from [0,1,2,3] or
     a Python string from ['A','C','G','T']"""
@@ -427,10 +434,10 @@ class DNASeqList(object):
         else:
             raise ValueError('at least one of length, seqs, seqarr, fileName, or binaryFileName must be specified')
         self.shift = np.arange(2*(self.seqlen-1), -1, -2)
-        
+
     def __len__(self):
         return self.numseqs
-    
+
     def __contains__(self, seq):
         if len(seq) != self.seqlen:
             return False
@@ -455,9 +462,9 @@ class DNASeqList(object):
         '''Writes text file describing DNA sequence list, in format
 
         numseqs seqlen
-        seq1 
-        seq2 
-        seq3 
+        seq1
+        seq2
+        seq3
         ...
 
         where numseqs, seqlen are integers, and seq1,
@@ -515,7 +522,7 @@ class DNASeqList(object):
             ret = [self.getSeqStr(i) for i in range(3)] + ['...'] + \
                   [self.getSeqStr(i) for i in range(self.numseqs-3,self.numseqs)]
             return ','.join(ret)
-        
+
     def shuffle(self):
         import numpy.random as nprand
         nprand.shuffle(self.seqarr)
@@ -527,7 +534,7 @@ class DNASeqList(object):
     def getSeqStr(self,idx):
         '''Return idx'th DNA sequence as a string.'''
         return arr2seq(self.seqarr[idx])
-    
+
     def getSeqsStrList(self,slice):
         '''Return a list of strings specified by slice.'''
         bases_lst = self.seqarr[slice]
@@ -544,28 +551,28 @@ class DNASeqList(object):
             return self.getSeqsStrList(idx)
         else:
             raise ValueError('idx must be int or slice')
-    
+
     def pop(self):
         '''Remove and return last seq, as a string.'''
         seqStr = self.getSeqStr(-1)
         self.seqarr = np.delete(self.seqarr, -1, 0)
         self.numseqs -= 1
         return seqStr
-    
+
     def pop_array(self):
         '''Remove and return last seq, as a string.'''
         arr = self.seqarr[-1]
         self.seqarr = np.delete(self.seqarr, -1, 0)
         self.numseqs -= 1
         return arr
-    
+
     def append_seq(self, newseq):
         self.append_arr(seq2arr(newseq))
-    
+
     def append_arr(self, newarr):
         self.seqarr = np.vstack([self.seqarr, newarr])
         self.numseqs += 1
-        
+
     def filter_hamming(self, threshold):
         seq = self.pop_array()
         arr_keep = np.array([seq])
@@ -581,13 +588,13 @@ class DNASeqList(object):
             arr_keep = np.vstack([arr_keep, seq])
         self.seqarr = arr_keep
         self.numseqs = self.seqarr.shape[0]
-    
+
     def hamming_min(self, arr):
         '''Returns minimum Hamming distance between arr and any sequence in
         this DNASeqList.'''
         distances = np.sum(np.bitwise_xor(self.seqarr, arr) != 0, axis=1)
         return np.min(distances)
-        
+
 
 #     def getSeqLong(self,idx):
 #         '''Return idx'th DNA sequence as a long in bit-compressed format.'''
@@ -603,7 +610,7 @@ class DNASeqList(object):
         within_range = (low <= wcenergies) & (wcenergies <= high)
         new_seqarr = self.seqarr[within_range]
         return DNASeqList(seqarr=new_seqarr)
-        
+
     def energies(self, temperature):
         wcenergies = calculateWCenergies(self.seqarr, temperature)
         return wcenergies
@@ -624,11 +631,11 @@ class DNASeqList(object):
         within_range = (low <= pfenergies) & (pfenergies <= high)
         new_seqarr = self.seqarr[within_range]
         return DNASeqList(seqarr=new_seqarr)
-    
+
     def filter_endGC(self):
         '''Remove any sequence with A or T on the end. Also remove domains that
         do not have an A or T either next to that base, or one away. Otherwise
-        we could get a domain ending in {C,G}^3, which, placed next to any 
+        we could get a domain ending in {C,G}^3, which, placed next to any
         domain ending in C or G, will create a substring in {C,G}^4 and be
         rejected if we are filtering those.'''
         left = self.seqarr[:,0]
@@ -646,10 +653,10 @@ class DNASeqList(object):
                  ((rightM1 == abits) | (rightM1 == tbits) | (rightM2 == abits) | (rightM2 == tbits)) )
         seqarrpass = self.seqarr[good]
         return DNASeqList(seqarr=seqarrpass)
-    
+
     def filter_endAT(self, gc_near_end=False):
         '''Remove any sequence with C or G on the end. Also, if gc_near_end is True,
-        remove domains that do not have an C or G either next to that base, 
+        remove domains that do not have an C or G either next to that base,
         or one away, to prevent breathing.'''
         left = self.seqarr[:,0]
         right = self.seqarr[:,-1]
@@ -663,12 +670,12 @@ class DNASeqList(object):
             leftP2 = self.seqarr[:,2]
             rightM1 = self.seqarr[:,-2]
             rightM2 = self.seqarr[:,-3]
-            good = ( good & 
+            good = ( good &
                    ((leftP1 == cbits) | (leftP1 == gbits) | (leftP2 == cbits) | (leftP2 == gbits)) &
                    ((rightM1 == cbits) | (rightM1 == gbits) | (rightM2 == cbits) | (rightM2 == gbits)) )
         seqarrpass = self.seqarr[good]
         return DNASeqList(seqarr=seqarrpass)
-    
+
     def filter_base_nowhere(self, base):
         '''Remove any sequence that has given base anywhere.'''
         good = (self.seqarr != _base2bits[base]).all(axis=1)
@@ -737,16 +744,16 @@ def calculate_loop_energies(temperature):
     '''Get SantaLucia and Hicks nearest-neighbor loop energies for given temperature,
     1 M Na+. '''
     return -(_dH - (temperature+273.15)*_dS/1000.0)
-    # SantaLucia & Hicks' values are in cal/mol/K for dS, and kcal/mol for dH. 
-    # Here we divide dS by 1000 to get the RHS term into units of kcal/mol/K 
-    # which gives an overall dG in units of kcal/mol. 
-    # One reason we want dG to be in units of kcal/mol is to 
-    # give reasonable/readable numbers close to 0 for dG(Assembly). 
-    # The reason we flip the sign is that, by convention, in the kTAM, G_se 
-    # (which is computed from the usually negative dG here) is usually positive. 
+    # SantaLucia & Hicks' values are in cal/mol/K for dS, and kcal/mol for dH.
+    # Here we divide dS by 1000 to get the RHS term into units of kcal/mol/K
+    # which gives an overall dG in units of kcal/mol.
+    # One reason we want dG to be in units of kcal/mol is to
+    # give reasonable/readable numbers close to 0 for dG(Assembly).
+    # The reason we flip the sign is that, by convention, in the kTAM, G_se
+    # (which is computed from the usually negative dG here) is usually positive.
 
 
-# _dH and _dS come from Table 2 in SantaLucia and Hicks, Annu Rev Biophys Biomol Struct. 2004;33:415-40.
+# _dH and _dS come from Table 1 in SantaLucia and Hicks, Annu Rev Biophys Biomol Struct. 2004;33:415-40.
 #                 AA   AC   AG   AT   CA   CC    CG   CT
 _dH = np.array([-7.6,-8.4,-7.8,-7.2,-8.5,-8.0,-10.6,-7.8,
                 # GA   GC   GG   GT   TA   TC   TG   TT
@@ -762,7 +769,7 @@ _dS = np.array([-21.3,-22.4,-21.0,-20.4,-22.7,-19.9,-27.2,-21.0,
 
 #  AA  AC  AG  AT  CA  CC  CG  CT  GA  GC  GG  GT  TA  TC  TG  TT
 #  00  01  02  03  10  11  12  13  20  21  22  23  30  31  32  34
- 
+
 # nearest-neighbor energies for Watson-Crick complements at 37C
 # (Table 1 in SantaLucia and Hicks 2004)
 # ordering of array is
@@ -809,7 +816,7 @@ def wcenergyStr(seq,temperature):
 
 def hash_ndarray(arr):
     writeable = arr.flags.writeable
-    if writeable: 
+    if writeable:
         arr.flags.writeable = False
     h = hash(arr.data)
     arr.flags.writeable = writeable
@@ -857,8 +864,6 @@ def wc(seqarr):
 def filterByCommonDensityLinear(seqs1, seqs2, delta=0.01, numPoints=100):
     '''Find a point where seqs1 and seqs2 both have high density and filter
     everything not within delta fraction of that point.
-
-    Searches all TODO
 
     Assumes both sequence lists have been sorted by binding energy.'''
     minPoint = np.min([seqs1.wcenergies[0], seqs2.wcenergies[0]])
@@ -985,7 +990,3 @@ def unpack(packedbits,seqlen):
     lsbits = bits[:,1:numbits:2]
     arr = (msbits << 1) + lsbits
     return arr
-
-
-
-

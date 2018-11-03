@@ -1,3 +1,5 @@
+# Backported from the python3 library; helps cache results of function calls 
+
 from collections import namedtuple
 from functools import update_wrapper
 from threading import RLock
