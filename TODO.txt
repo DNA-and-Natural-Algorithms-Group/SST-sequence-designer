@@ -2,6 +2,6 @@ Does lru_cache.py need a license? Where did it come from?
 
 Add/fix comments at beginning of each source file
 
-See that we are all good with licenses
-
 Add analysis code, and an example analysis pdf file
+
+Propagate comments from ibc_6bit.py to other input param files
