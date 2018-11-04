@@ -3,7 +3,7 @@ Shipped with DNA single-stranded tile (SST) sequence designer used in the follow
  "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly"
  Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
 
-Generally sst_dsd processes Python 'ACTG' strings (as opposed to numpy arrays)
+Generally sst_dsd processes Python 'ACTG' strings (as opposed to numpy arrays which are processed by dsd).
 '''
 
 
@@ -20,9 +20,7 @@ import itertools
 
 global_thread_pool = ThreadPool()
 
-# unix path must be able to find NUPACK, and NUPACKHOME must be set.  e.g. by .cshrc contains
-#   set path = ( /Users/winfree/DNA_cluster/nupack3.0.1/bin . $path )
-#   setenv NUPACKHOME ~winfree/DNA_cluster/nupack3.0.1/
+# unix path must be able to find NUPACK, and NUPACKHOME must be set, as described in NUPACK installation instructions.
 
 def dGadjust(temperature,seqlen):
     R = 0.0019872041 # Boltzmann's constant in kcal/mol/K
@@ -75,8 +73,6 @@ def pfunc_multiple(seqtuples, temperature, adjust=True):
         
     user_input = '\n'.join( str(len(seqtuple)) + '\n' + '\n'.join(seqtuple) + '\n' + ' '.join(map(str,range(1,len(seqtuple)+1))) for seqtuple in seqtuples ) + '\n-1\n'
     
-#     print 'input="{}"'.format(user_input)
-#     return 
     
     p=sub.Popen(['pfunc_multi','-T',str(temperature),'-multi','-material','dna'],
                  stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE)   
@@ -86,17 +82,12 @@ def pfunc_multiple(seqtuples, temperature, adjust=True):
     except BaseException as error:
         p.kill()
         raise error
-    
-#     print 'output="{}"'.format(output)
-    
+        
     lines = output.split('\n')[6:-1:2]
-    
-#     print 'parsed output="{}"'.format('\n'.join(lines))
-    
+        
     dGa = dGadjust(temperature, len(seqtuples[0]))
     pfunc_energies = [-(float(line)+dGa) for line in lines]
     
-#     print 'pfunc_energies={}'.format(pfunc_energies)
         
     return pfunc_energies
 
@@ -143,8 +134,7 @@ def RNAduplex_multiple(seqpairs, temperature_in_C):
             if len(lines) - 1 != len(seqpairs):
                 raise ValueError('lengths do not match: #lines:{} #seqpairs:{}'.format(len(lines)-1, len(seqpairs)))
             got_results = True
-        
-        
+               
     return dG_list  # returns negated energies (i.e. more positive is more favourable)
 
 def RNAcofold_multiple(seqpairs, temperature_in_C): 
