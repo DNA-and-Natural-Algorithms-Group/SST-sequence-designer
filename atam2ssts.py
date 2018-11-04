@@ -9,8 +9,8 @@ file using the syntax given in, for example  ./input_tilesets/ibc_6bit.py.
 See README file for installation info. 
 
 The glues on each tiles should all have "strength 1" in the aTAM. The program has the following design 
-criteria (described in more detail in the above-mentioned publication, and in the above-mentioned example input file):
-1) Glues (aka stick ends) should have roughly equal binding energy (i.e., be isoenergetic).
+criteria (described in more detail in Suppl Info A of the above-mentioned publication, and in the above-mentioned example input file):
+1) Glues (aka sticky ends) should have roughly equal binding energy (i.e., be isoenergetic).
 2) Tiles should have small internal secondary structure.
 3) Interactions between all pairs of tiles should be small, whether or not they have equal (complementary) glues.
 4) Minimize interactions of sticky ends that are not complementary, but which might end up "close" due to a tile attachment error.

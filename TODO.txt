@@ -1,8 +1,8 @@
-Does lru_cache.py need a license? Where did it come from? 
-
-
 Add analysis code, and an example analysis pdf file
+
+
+Does lru_cache.py need a license? Where did it come from? 
 
 Propagate comments from ibc_6bit.py to other input param files
 
-Add/fix comments at beginning of each source file
+Update comments at start of atam2ssts.py to be consistent with page 43,44 of SI-A (crieteria in seq design section)
