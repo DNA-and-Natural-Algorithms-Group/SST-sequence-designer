@@ -1,8 +1,8 @@
 #
 # Specification of 6-bit IBC tile set with 2x2 proofreading with energy thresholds 
 # that will cause the sequence designer to rapidly output random sequences that 
-# have exceptionally poor algorithmic self-assembly properties. Userful for testing
-# purpses. Random sequences are analysed in Figure S18(a) of Supplementary Information A.
+# have exceptionally poor algorithmic self-assembly properties. Useful for testing
+# purposes. Random sequences are analysed in Figure S18(a) of Supplementary Information A.
 #
 # Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
 # Diverse and robust molecular algorithms using reprogrammable DNA self-assembly
