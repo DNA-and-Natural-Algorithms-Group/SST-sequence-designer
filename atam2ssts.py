@@ -1,21 +1,25 @@
 '''
-DNA single-stranded tile (SST) sequence designer used in the following publication.
+Top-level file for DNA single-stranded tile (SST) sequence designer used in the following publication.
  "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly"
  Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
 
 This program takes as input a set of tile types and outputs SSTs encoding them, given as a parameter
-file using the syntax given (for example in ./input_tilesets/ibc_6bit.py). See README file for installation info. 
-The glues on each tiles should all have "strength 1" in the aTAM.
+file using the syntax given in, for example  ./input_tilesets/ibc_6bit.py. 
 
-The program has the following design criteria (described in more detail in the above-mentioned publication):
-1) SSTs should have minimal secondary structure.
-2) Sticky ends should have roughly equal binding energy (i.e., isoenergetic)
-3) Sticky ends that are not complementary, but which might end up "close",
-should have *very* low binding affinity
-4) Sticky ends that are not complementary, even if they don't end up "close",
-should have *somewhat* low binding affinity.
-5) Minimize interaction energy between all pairs of tiles, whether or not they have equal glues.
-6) No GGGG in a tile and no {C,G}^4 in a sticky end
+See README file for installation info. 
+
+The glues on each tiles should all have "strength 1" in the aTAM. The program has the following design 
+criteria (described in more detail in the above-mentioned publication, and in the above-mentioned example input file):
+1) Glues (aka stick ends) should have roughly equal binding energy (i.e., be isoenergetic).
+2) Tiles should have small internal secondary structure.
+3) Interactions between all pairs of tiles should be small, whether or not they have equal (complementary) glues.
+4) Minimize interactions of sticky ends that are not complementary, but which might end up "close" due to a tile attachment error.
+   (one input domain matching, one input domain mismatching) should have very low binding affinity.
+5) Minimize interactions of sticky ends that are not complementary, but which might end up "close" by 
+   being co-located on a growing lattice frontier. 
+6) No GGGG in a tile and no {C,G}^4 in a sticky end.
+A number of constraints enforce these and other properties are described elsewhere. 
+
 
 Regarding criterion (3), the sticky ends might be close because they are on the
 same tile type, but this should be handled by case (2). Therefore, we only
@@ -44,6 +48,8 @@ In this example, tile type t1 matches both available output sticky ends w* and
 y*. However, tile type t2 matches w* but not y*. Therefore, because of the
 match between t2's w and w*, and the mismatch between x and y*, we require
 that x and y* have very low binding affinity.
+
+Regarding criterion (4), we would want y* and w* to have little interaction, and w and y to have littler interaction. 
 '''
 
 from __future__ import division
