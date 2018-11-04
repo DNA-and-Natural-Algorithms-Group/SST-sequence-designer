@@ -4,21 +4,21 @@
 # Specification of 6-bit IBC tile set with 2x2 proofreading with energy thresholds 
 # as used in the following publication.
 #
+# "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly"
 # Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
-# Diverse and robust molecular algorithms using reprogrammable DNA self-assembly
 # 
 # Note that all energy parameter values are sign-flipped (i.e. more positive is more favourable)
 
 
+
+# temperature in degrees C at which to evaluate energies
+temperature = 53.0
 
 # "global" energy interval for all glues, except those glues with user-specified sequences;
 # evaluated using a simple nearest-neighbour model
 lowDG=8.9
 highDG=9.2
 biotin_strength_boost=1.1
-
-# temperature in degrees C at which to evaluate energies
-temperature = 53.0
     
 # allowed energy of secondary structure of each individual tile (via nupack); sequence designer reports violations under "tile sec struct "
 tile_sec_struct = 1.65 
