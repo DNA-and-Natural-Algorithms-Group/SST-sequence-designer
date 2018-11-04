@@ -1,25 +1,21 @@
 '''
-This program takes as input a set of tile types and outputs SSTs encoding them.
+DNA single-stranded tile (SST) sequence designer used in the following publication.
+ "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly"
+ Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
 
-The tiles should all have "strength 1" in the aTAM.
+This program takes as input a set of tile types and outputs SSTs encoding them, given as a parameter
+file using the syntax given (for example in ./input_tilesets/ibc_6bit.py). See README file for installation info. 
+The glues on each tiles should all have "strength 1" in the aTAM.
 
-The program has the following design criteria (described in more detail in the associated publication):
-
+The program has the following design criteria (described in more detail in the above-mentioned publication):
 1) SSTs should have minimal secondary structure.
-
 2) Sticky ends should have roughly equal binding energy (i.e., isoenergetic)
-
 3) Sticky ends that are not complementary, but which might end up "close",
 should have *very* low binding affinity
-
 4) Sticky ends that are not complementary, even if they don't end up "close",
 should have *somewhat* low binding affinity.
-
 5) Minimize interaction energy between all pairs of tiles, whether or not they have equal glues.
-
-6) No GGGG in a tile
-
-7) No {C,G}^4 in a sticky end
+6) No GGGG in a tile and no {C,G}^4 in a sticky end
 
 Regarding criterion (3), the sticky ends might be close because they are on the
 same tile type, but this should be handled by case (2). Therefore, we only
@@ -49,6 +45,7 @@ y*. However, tile type t2 matches w* but not y*. Therefore, because of the
 match between t2's w and w*, and the mismatch between x and y*, we require
 that x and y* have very low binding affinity.
 '''
+
 from __future__ import division
 import dsd
 import sst_dsd as sd
