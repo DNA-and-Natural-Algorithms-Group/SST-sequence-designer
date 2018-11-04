@@ -107,7 +107,7 @@ def RNAduplex_multiple(seqpairs, temperature_in_C):
     # e.g. any extra whitespace characters causes RNAduplex to default to RNA parameter set without warning the user!
     
     # parameter_set = 'dna_mathews2004.par'  # Loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
-    parameter_set = 'dna_mathews1999.par'    # Gives better agreement with nupack than dna_mathews2004.par
+    parameter_set = './nupack_viennaRNA/dna_mathews1999.par'    # Gives better agreement with nupack than dna_mathews2004.par
     
     # process the input into a string
     user_input = '\n'.join(seqpair[0]+'\n'+seqpair[1] for seqpair in seqpairs) + '\n@\n'

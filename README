@@ -47,7 +47,7 @@ The sequence designer relies on the specific point versions of NUPACK and Vienna
 ----------------------------------------
 C. Some example commands
 ----------------------------------------
-An example command to design a small demo sequence set:
+An example command to quickly design a small demo sequence set:
  python2 atam2ssts.py  -p parameter_files/demo.py  -o designed_sequences/demo_sequences.txt
 
 An example command to quickly design 355 sequences using loose parameters that will presumably result in worse sequences than those used in our experimental work:
