@@ -625,15 +625,22 @@ class TileSet:
                 ng1.conflicting_glues_first_order.add(ng2)
                 ng2.conflicting_glues_first_order.add(ng1)
 
-            gate_position1,_,proof_internal_pos1 = tile1.name.split(';')
-            gate_position2,_,proof_internal_pos2 = tile2.name.split(';')
-            if gate_position1 == gate_position2 and proof_internal_pos1 == proof_internal_pos2:
-                if wg1 != wg2:
-                    wg1.conflicting_glues_generalized.add(wg2)
-                    wg2.conflicting_glues_generalized.add(wg1)
-                if ng1 != ng2:
-                    ng1.conflicting_glues_generalized.add(ng2)
-                    ng2.conflicting_glues_generalized.add(ng1)
+
+            if len(tile1.name.split(';')) == 3 and len(tile2.name.split(';')) == 3:
+                # If tile names are of the form ___;___;___ then the code assumes they are using
+                # our proofreading block naming convention and carries out an orthogonality test
+                # for generalised algorithmic (tile attachment) errors. Generalised algorithmic (tile attachment) 
+                # errors are errors where we assume one or more errors have already occurred elsewhere
+                # in a proof-reading block. Generalised algorithmic (tile attachment) errors are also described in Suppl. Info. A.  
+                gate_position1,_,proof_internal_pos1 = tile1.name.split(';')
+                gate_position2,_,proof_internal_pos2 = tile2.name.split(';')
+                if gate_position1 == gate_position2 and proof_internal_pos1 == proof_internal_pos2:
+                    if wg1 != wg2:
+                        wg1.conflicting_glues_generalized.add(wg2)
+                        wg2.conflicting_glues_generalized.add(wg1)
+                    if ng1 != ng2:
+                        ng1.conflicting_glues_generalized.add(ng2)
+                        ng2.conflicting_glues_generalized.add(ng1)
 
 
 
