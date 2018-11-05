@@ -221,7 +221,11 @@ class Glue:
                 return tile.parity
             elif tile.glue('W') == self:
                 return tile.parity
-        raise ValueError('no tile has glue %s in directions N or W' % (repr(self)))
+            elif tile.glue('S') == self:
+                return 1 - tile.parity
+            elif tile.glue('E') == self:
+                return 1 - tile.parity
+        raise ValueError('no tile has glue %s in any direction' % (repr(self)))
 
     def get_end(self, direction, include_biotins=False):
         if self.end is None:  return None
