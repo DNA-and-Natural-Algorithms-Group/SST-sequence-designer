@@ -1023,7 +1023,7 @@ class TileSet:
         namepairs = [(n1,n2) for (n1,n2) in tile_pair_names_to_check_this_time[start_pos:start_pos+num_pairs_per_call*num_parallel_lists]]
         seqpairs = [ (self.name2tile[n1].sequence(), self.name2tile[n2].sequence()) for (n1,n2) in namepairs ]
 
-        if threaded_tile_pairs:
+        if threaded_tile_pairs and len(seqpairs) >= num_parallel_lists:
             list_of_list_of_seqpair = list(split(seqpairs, num_parallel_lists))
             lengths = [len(list_of_seqpair) for list_of_seqpair in list_of_list_of_seqpair]
             if sum(lengths) != len(seqpairs):
@@ -1081,9 +1081,11 @@ class TileSet:
         else:
             tile_pair_seqs = [(self.name2tile[t1name].sequence(), self.name2tile[t2name].sequence())
                               for (t1name,t2name) in tile_pair_names_to_check_this_time]
-            if threaded_tile_pairs:
+
+
+            num_parallel_lists = global_thread_pool._processes
+            if threaded_tile_pairs and len(tile_pair_seqs) >= num_parallel_lists:
     #             num_parallel_lists = max(global_thread_pool._processes, len(tile_pair_seqs) // 500)
-                num_parallel_lists = global_thread_pool._processes
                 list_of_list_of_seqpair = list(split(tile_pair_seqs, num_parallel_lists))
                 lengths = [len(list_of_seqpair) for list_of_seqpair in list_of_list_of_seqpair]
                 if sum(lengths) != len(tile_pair_seqs):
