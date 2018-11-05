@@ -625,9 +625,9 @@ class TileSet:
                 ng1.conflicting_glues_first_order.add(ng2)
                 ng2.conflicting_glues_first_order.add(ng1)
 
-            proof_block1,_,proof_internal_pos1 = tile1.name.split(';')
-            proof_block2,_,proof_internal_pos2 = tile2.name.split(';')
-            if proof_block1 == proof_block2 and proof_internal_pos1 == proof_internal_pos2:
+            gate_position1,_,proof_internal_pos1 = tile1.name.split(';')
+            gate_position2,_,proof_internal_pos2 = tile2.name.split(';')
+            if gate_position1 == gate_position2 and proof_internal_pos1 == proof_internal_pos2:
                 if wg1 != wg2:
                     wg1.conflicting_glues_generalized.add(wg2)
                     wg2.conflicting_glues_generalized.add(wg1)
@@ -1081,7 +1081,6 @@ class TileSet:
         else:
             tile_pair_seqs = [(self.name2tile[t1name].sequence(), self.name2tile[t2name].sequence())
                               for (t1name,t2name) in tile_pair_names_to_check_this_time]
-
 
             num_parallel_lists = global_thread_pool._processes
             if threaded_tile_pairs and len(tile_pair_seqs) >= num_parallel_lists:
