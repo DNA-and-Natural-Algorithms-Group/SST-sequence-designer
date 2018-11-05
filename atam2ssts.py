@@ -21,12 +21,14 @@ criteria (described in more detail in Suppl Info A of the above-mentioned public
 A number of constraints enforce these and other properties are described elsewhere. 
 
 
-Regarding criterion (3), the sticky ends might be close because they are on the
+Regarding criterion (3) [this should be (4)?], the sticky ends might be close because they are on the
 same tile type, but this should be handled by case (2). Therefore, we only
-assume x and y they are "close" if x is an "output glue" of some tile type, and
+assume x and y are "close" if x is an "output glue" of some tile type, and
 y is an "input glue", and it is possible for them to get close because the tile
 where y is could bind by strength 1 to a tile adjacent to x's tile. Here is an
 illustration (the # represents a boundary between sticky ends):
+
+[to avoid confusion with the figure below, should the above "x" be changed to "y*"  and the above "y" changed to "x"?]
 
           /---------#--------->             tile type t1
           |              b*                /---------#--------->
@@ -49,7 +51,9 @@ y*. However, tile type t2 matches w* but not y*. Therefore, because of the
 match between t2's w and w*, and the mismatch between x and y*, we require
 that x and y* have very low binding affinity.
 
-Regarding criterion (4), we would want y* and w* to have little interaction, and w and y to have littler interaction. 
+Regarding criterion (4) [this should be (5)?], we would want y* and w* to have little interaction, and w and y to have littler interaction. 
+[why should w and y have "littler interaction" according to criterion (5)? I see that criterion (3) requires w and y to have little interaction due to both being on tile type t1.]
+
 '''
 
 from __future__ import division
