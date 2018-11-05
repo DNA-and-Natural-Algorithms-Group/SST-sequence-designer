@@ -1,8 +1,16 @@
+# parameter file to give input to sequence designer:
+# uniqueNxNfinite.py
+#
+# Creates an NxN array of uniquely-addressed tiles that has poly-T domains on the boundary.
 
-# parameter file to give input to sequence designer. 
+# this currently throws an error with atam2ssts, due to boundary glues not having a partner.  Whether or not we assign them poly-T.
+# but why doesn't the same error occur with the multifarious shapes that use self-healing?
+
+N=7
+
+
 # Note that all energy parameter values are sign-flipped 
 # (i.e. more positive is more favourable)
-
 
 # "global" energy interval for all glues, except those glues with user-specified sequences
 # evaluated using a simple nearest-neighbour model
@@ -61,33 +69,18 @@ detect_nondeterminism=False
 
 
 
-# List of tiles, each tile is a python dictionary
-# This is a small 10-tile example, which is overwritten by the code below (i.e. it is provided as format template only)
-tiles = \
-[{'name': 'T0;_;_', 'parity': 1, 'E': 'glue_0',  'N': 'glue_1',  'S': 'glue_2',  'W': 'glue_3'},
- {'name': 'T1;_;_', 'parity': 0, 'E': 'glue_3',  'N': 'glue_2',  'S': 'glue_4',  'W': 'glue_5'},
- {'name': 'T2;_;_', 'parity': 1, 'E': 'glue_5',  'N': 'glue_4',  'S': 'glue_6',  'W': 'glue_7'},
- {'name': 'T3;_;_', 'parity': 0, 'E': 'glue_7',  'N': 'glue_6',  'S': 'glue_8',  'W': 'glue_9'},
- {'name': 'T4;_;_', 'parity': 1, 'E': 'glue_9',  'N': 'glue_8',  'S': 'glue_10', 'W': 'glue_11'},
- {'name': 'T5;_;_', 'parity': 0, 'E': 'glue_11', 'N': 'glue_10', 'S': 'glue_12', 'W': 'glue_13'},
- {'name': 'T6;_;_', 'parity': 1, 'E': 'glue_13', 'N': 'glue_12', 'S': 'glue_14', 'W': 'glue_15'},
- {'name': 'T7;_;_', 'parity': 0, 'E': 'glue_15', 'N': 'glue_14', 'S': 'glue_16', 'W': 'glue_17'} ,
- {'name': 'T8;_;_', 'parity': 1, 'E': 'glue_17', 'N': 'glue_16', 'S': 'glue_18', 'W': 'glue_19'},
- {'name': 'T9;_;_', 'parity': 0, 'E': 'glue_19', 'N': 'glue_18', 'S': 'glue_1',  'W': 'glue_0'}
-]
-
-# algorithmically build a NxN set of tiles
+# algorithmically build a NxN set of tiles, each tile is a python dictionary
 N=6
 tiles=list()
 for i in range(N):
   for j in range(N):
     tiles.append({
-            'name': 'T;'+str(i)+';'+str(j),
+            'name': 'T'+str(i)+'x'+str(j),
             'parity': (i+j)%2,
-            'N': 'glue_NS_'+str((i+1)%N)+'_'+str(j),
-            'E': 'glue_EW_'+str(i)+'_'+str((j+1)%N),
-            'S': 'glue_NS_'+str(i)+'_'+str(j),
-            'W': 'glue_EW_'+str(i)+'_'+str(j)
+            'N': 'glue_NS_'+str(i+1)+'x'+str(j),
+            'E': 'glue_EW_'+str(i)+'x'+str(j+1),
+            'S': 'glue_NS_'+str(i)+'x'+str(j),
+            'W': 'glue_EW_'+str(i)+'x'+str(j)
     })
 
 print "========================================================"
@@ -122,7 +115,12 @@ glue_strength_constraints = \
 # Glues with sequences already assigned to them (note that the sequences are allowed to violate the strength constraints).
 # In particular this is useful when specifiying a single "seam tile" for two posiitons in a proof-reading block, 
 # which we do here as follows (as two tiles with the same sequences):
-glue_sequences = [] 
+glue_sequences = [ ("glue_NS_%dx%d"%(0,i),"S","TTTTTTTTTTT" if i%2==0 else "TTTTTTTTTT") for i in range(N) ] + \
+                 [ ("glue_NS_%dx%d"%(N,i),"N","TTTTTTTTTTT" if (N+i)%2==0 else "TTTTTTTTTT") for i in range(N) ] + \
+                 [ ("glue_EW_%dx%d"%(i,0),"W","TTTTTTTTTTT" if i%2==1 else "TTTTTTTTTT") for i in range(N) ] + \
+                 [ ("glue_EW_%dx%d"%(i,N),"E","TTTTTTTTTTT" if (N+i)%2==1 else "TTTTTTTTTT") for i in range(N) ]
+
+print glue_sequences
 
 # If this is defined, it defines mutually exclusive pairs of tiles (their names, actually) 
 # that will never be together in the same pot 
