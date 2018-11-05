@@ -63,7 +63,10 @@ detect_nondeterminism=False
 
 
 
-# List of tiles, each tile is a python dictionary
+# List of tiles, each tile is a python dictionary.
+# If a tile name has two ";"-symbols, e.g. 'U6;00->00;nw', it is assumed that 2 x 2 proofreading is being used, 
+# with the following naming convention:  <proofreading block row>;<arbitrary string>;<an element of {nw,ne,sw,se}> 
+# Names of that (proofreading form) trigger an extra test in the sequence designer (see find_conflicting_glues() in atam2ssts.py)
 tiles = \
 [{'name':'U6;00->00;nw' , 'parity':1, 'S':'iL:U6;00->00' , 'W':'T:U6_W_0'     , 'N':'L:U6_N_0'     , 'E':'iT:U6;00->00' },
  {'name':'U6;00->00;ne' , 'parity':0, 'S':'iR:U6;00->00' , 'W':'iT:U6;00->00' , 'N':'R:U6_N_0'     , 'E':'T:U6_E_0'     },
