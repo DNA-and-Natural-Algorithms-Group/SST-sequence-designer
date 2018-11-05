@@ -9,7 +9,8 @@ file using the syntax given in, for example  ./input_tilesets/ibc_6bit.py.
 See README file for installation info. 
 
 The glues on each tiles should all have "strength 1" in the aTAM. The program has the following design 
-criteria (described in more detail in Suppl Info A of the above-mentioned publication, and in the above-mentioned example input file):
+criteria (these, and a number of related constraints, are described in more detail in Suppl Info A of the 
+above-mentioned publication, and in the above-mentioned example input file):
 1) Glues (aka sticky ends) should have roughly equal binding energy (i.e., be isoenergetic).
 2) Tiles should have small internal secondary structure.
 3) Interactions between all pairs of tiles should be small, whether or not they have equal (complementary) glues.
@@ -18,17 +19,14 @@ criteria (described in more detail in Suppl Info A of the above-mentioned public
 5) Minimize interactions of sticky ends that are not complementary, but which might end up "close" by 
    being co-located on a growing lattice frontier. 
 6) No GGGG in a tile and no {C,G}^4 in a sticky end.
-A number of constraints enforce these and other properties are described elsewhere. 
 
 
-Regarding criterion (3) [this should be (4)?], the sticky ends might be close because they are on the
+Regarding criterion (4), the sticky ends might be close because they are on the
 same tile type, but this should be handled by case (2). Therefore, we only
-assume x and y are "close" if x is an "output glue" of some tile type, and
-y is an "input glue", and it is possible for them to get close because the tile
-where y is could bind by strength 1 to a tile adjacent to x's tile. Here is an
+assume y and x are "close" if y* is an "output" sticky ends of some tile type, and
+x is an "input" sticky ends, and it is possible for them to get close because the tile
+where x is could bind by strength 1 to a tile adjacent to y*'s tile. Here is an
 illustration (the # represents a boundary between sticky ends):
-
-[to avoid confusion with the figure below, should the above "x" be changed to "y*"  and the above "y" changed to "x"?]
 
           /---------#--------->             tile type t1
           |              b*                /---------#--------->
@@ -51,9 +49,7 @@ y*. However, tile type t2 matches w* but not y*. Therefore, because of the
 match between t2's w and w*, and the mismatch between x and y*, we require
 that x and y* have very low binding affinity.
 
-Regarding criterion (4) [this should be (5)?], we would want y* and w* to have little interaction, and w and y to have littler interaction. 
-[why should w and y have "littler interaction" according to criterion (5)? I see that criterion (3) requires w and y to have little interaction due to both being on tile type t1.]
-
+Regarding criterion (5), we would want y* and w* to have little interaction, and w and x to have little interaction. 
 '''
 
 from __future__ import division
