@@ -2,12 +2,26 @@
 # uniqueNxNfinite.py
 #
 # Creates an NxN array of uniquely-addressed tiles that has poly-T domains on the boundary.
+# 
+# Note 1: While the sequence designer will produce tile sequences for this tile set, please 
+# be aware that atam2ssts was formulated with DNA nanotubes in mind, and with a specific
+# growth direction, and thus we have not evaluated the suitability of these sequences for
+# other growth patterns.  In fact, we recommend that they be taken with extreme caution.
+#
+# Note 2: Because the poly-T sequences are assigned to several glues with different names,
+# the "lattice-binding" score will never reach zero and thus the designer will never halt.
+# You will have to use control-C to stop the process, and then manual kill any residual
+# pfunc processes that may be left running.  But the sequences left in the output file,
+# which is written whenever a new "best sequence" is found, should be usable.  
+#
+# Note 3: You can avoid using the poly-T sequences by setting "glue_sequences = []" and
+# in that case the design process should come to a natural halt.
+#
+# Note 4: This NxN finite array is similar in spirit to the 310-pixel rectangular canvas of 
+# "Complex shapes self-assembled from single-stranded DNA tiles" (Wei, Dai, Yin, Nature, 2012)
+# but has different boundary conditions and orientation (diamond vs square).
 
-# this currently throws an error with atam2ssts, due to boundary glues not having a partner.  Whether or not we assign them poly-T.
-# but why doesn't the same error occur with the multifarious shapes that use self-healing?
-
-N=7
-
+N=9
 
 # Note that all energy parameter values are sign-flipped 
 # (i.e. more positive is more favourable)
@@ -70,7 +84,6 @@ detect_nondeterminism=False
 
 
 # algorithmically build a NxN set of tiles, each tile is a python dictionary
-N=6
 tiles=list()
 for i in range(N):
   for j in range(N):

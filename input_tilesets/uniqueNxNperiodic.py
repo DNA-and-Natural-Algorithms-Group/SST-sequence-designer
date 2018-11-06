@@ -2,11 +2,16 @@
 # uniqueNxNperiodic.py
 #
 # Creates an NxN array of uniquely-addressed tiles that has periodic boundariy conditions
-# so that it could form an unbounded 2D array or (more likely) roll up into a tube.
+# so that it could form an unbounded 2D array or (more likely) roll up into a tube (which would most
+# likely be a 16-helix tube for N=8).
 #
 # The value of N is specified below; it must be even to satisfy SST tile type parity conditions.
+#
+# Note: The design parameters specified below are similar to those used for the complete 6-bit IBC
+# tile set.  More stringent criteria could presumably be used for N=8, and presumbly they would 
+# have to be relaxed for larger tile sets.
 
-N=6
+N=8
 if N%2==1:
   import sys
   sys.exit("N must be even!")
