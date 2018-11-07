@@ -10,14 +10,14 @@
 #
 # Note 2: Because the poly-T sequences are assigned to several glues with different names,
 # the "lattice-binding" score will never reach zero and thus the designer will never halt.
-# You will have to use control-C to stop the process, and then manual kill any residual
+# You will have to use control-C to stop the process, and then manually kill any residual
 # pfunc processes that may be left running.  But the sequences left in the output file,
 # which is written whenever a new "best sequence" is found, should be usable.  
 #
 # Note 3: You can avoid using the poly-T sequences by setting "glue_sequences = []" and
 # in that case the design process should come to a natural halt.
 #
-# Note 4: This NxN finite array is similar in spirit to the 310-pixel rectangular canvas of 
+# Note 4: This NxN finite array has a similar layout to to the 310-pixel rectangular canvas of 
 # "Complex shapes self-assembled from single-stranded DNA tiles" (Wei, Dai, Yin, Nature, 2012)
 # but has different boundary conditions and orientation (diamond vs square).
 
@@ -126,7 +126,7 @@ glue_strength_constraints = \
             
 
 # Glues with sequences already assigned to them (note that the sequences are allowed to violate the strength constraints).
-# In particular this is useful when specifiying a single "seam tile" for two posiitons in a proof-reading block, 
+# In particular this is useful when specifying a single "seam tile" for two positions in a proof-reading block, 
 # which we do here as follows (as two tiles with the same sequences):
 glue_sequences = [ ("glue_NS_%dx%d"%(0,i),"S","TTTTTTTTTTT" if i%2==0 else "TTTTTTTTTT") for i in range(N) ] + \
                  [ ("glue_NS_%dx%d"%(N,i),"N","TTTTTTTTTTT" if (N+i)%2==0 else "TTTTTTTTTT") for i in range(N) ] + \
