@@ -10,7 +10,7 @@ Generally sst_dsd processes Python 'ACTG' strings (as opposed to numpy arrays wh
 from __future__ import division
 import dsd
 import numpy as np
-import math, string, random, sys
+import math, string, random, sys, os
 import subprocess as sub
 import time
 import datetime
@@ -102,8 +102,11 @@ def RNAduplex_multiple(seqpairs, temperature_in_C):
     # NB: the string parameter_set needs to be exactly the intended filename; 
     # e.g. any extra whitespace characters causes RNAduplex to default to RNA parameter set without warning the user!
     
-    # parameter_set = 'dna_mathews2004.par'  # Loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
-    parameter_set = './nupack_viennaRNA/dna_mathews1999.par'    # Gives better agreement with nupack than dna_mathews2004.par
+    parameter_set = os.path.join(os.path.dirname(__file__),
+                                 'nupack_viennaRNA/dna_mathews1999.par')    # Gives better agreement with nupack than dna_mathews2004.par. Note that loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
+    
+    print str(parameter_set)
+
     
     # process the input into a string
     user_input = '\n'.join(seqpair[0]+'\n'+seqpair[1] for seqpair in seqpairs) + '\n@\n'
