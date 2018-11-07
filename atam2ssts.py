@@ -1672,10 +1672,6 @@ def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter
         print str(len(ec.ends))+ ' ends after removal of: ' + str(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))
            + ' None'*(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))=='') )
 
-    #print 'Yo....'
-    #print ec.ends[:10]
-    #print uags[10] + uags[11]
-    #print 'check if all ends removed:' + str( set(ec.ends).intersection(set(uags[10] + uags[11])) )
 
 
 def grouper(iterable, n, fillvalue=None):
@@ -1812,8 +1808,6 @@ def read_tiles_from_file(filename):
             else:
                 glue_biotin[(label,axis)] = direction
 
-#     from pprint import pprint
-#     pprint('glue_biotin: %s' % glue_biotin)
 
     dna_alphabet_pattern = re.compile('(A|C|G|T)+')
 
@@ -1959,10 +1953,6 @@ if __name__ == "__main__":
     parser.add_argument('-s','--seqs', help='name of file (in format of output file) indicating which sequences to start with', required=False)
     args = vars(parser.parse_args())
 
-#     if len(args) != 2:
-#         print args
-#         print 'USAGE:\n  python atam2ssts.py infile outfile\n\n%s' % read_tiles_from_file.__doc__
-#         sys.exit(-1)
     in_filename = args['params']
     out_filename = args['out']
     seqs_filename = args.get('seqs')
@@ -1984,5 +1974,4 @@ if __name__ == "__main__":
 
     print
     for tile in tileset.tiles:
-        #print '*'*79
         print '%5s %s' % (tile, tile.sequence_spaced(include_biotins=True))

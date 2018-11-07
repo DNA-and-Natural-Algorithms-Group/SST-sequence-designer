@@ -104,10 +104,7 @@ def RNAduplex_multiple(seqpairs, temperature_in_C):
     
     parameter_set = os.path.join(os.path.dirname(__file__),
                                  'nupack_viennaRNA/dna_mathews1999.par')    # Gives better agreement with nupack than dna_mathews2004.par. Note that loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
-    
-    print str(parameter_set)
-
-    
+        
     # process the input into a string
     user_input = '\n'.join(seqpair[0]+'\n'+seqpair[1] for seqpair in seqpairs) + '\n@\n'
 
