@@ -1946,7 +1946,7 @@ def check_for_nupack():
     try:
         sd.duplex("ACGT", 53)
     except:
-        print 'NUPACK is not installed correctly. Please install it and ensure that pfunc can be called from the command line.'
+        print 'NUPACK is not installed correctly. Please install it and ensure that pfunc can be called from the command line, and that NUPACKHOME is appropriately set.'
         sys.exit(-1)
     print 'NUPACK is installed correctly'
 
@@ -1956,7 +1956,7 @@ def check_for_viennarna():
     try:
         sd.RNAduplex_multiple([("ACGT","TGCA")], 53)
     except:
-        print 'Vienna RNA is not installed correctly. Please install it and ensure that RNADuplex can be called from the command line.'
+        print 'Vienna RNA is not installed correctly. Please install it and ensure that RNAduplex can be called from the command line.'
         sys.exit(-1)
     print 'Vienna RNA is installed correctly'
 
