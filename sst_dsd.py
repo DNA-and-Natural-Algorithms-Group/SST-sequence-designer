@@ -31,7 +31,7 @@ def dGadjust(temperature,seqlen):
     adjust = R*K*math.log(water_conc) # converts from NUPACK mole fraction units to molar units, per association
     return adjust*(seqlen-1)
 
-#@lru_cache(maxsize=100000)
+@lru_cache(maxsize=100000)
 def pfunc(seqtuple,temperature,adjust=True):
     """Calls NUPACK's pfunc on a complex consisting of the unique strands in
     seqtuple, returns dG.  temperature is in Celsius.
