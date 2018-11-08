@@ -1952,7 +1952,7 @@ def check_for_nupack():
 
 
 def check_for_viennarna():
-    print 'Checking for Vienna RNA... ',
+    print 'Checking for ViennaRNA... ',
     try:
         sd.RNAduplex_multiple([("ACGT","TGCA")], 53)
     except:
