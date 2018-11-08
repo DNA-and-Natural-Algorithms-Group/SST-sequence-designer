@@ -87,7 +87,8 @@ OUTPUT_GLUE_PAIRS_EXTEND = 1
 LATTICE_BINDING_EXTEND = 1
 
 QUIT_EARLY_OPTIMIZATION = True
-THREADED = THREADED_TILE_PAIRS = True
+THREADED = False
+THREADED_TILE_PAIRS = True
 
 
 def is_canonical(direction):
@@ -1291,6 +1292,7 @@ class TileSet:
         Uses stochastic local search heuristic.'''
         print '\n' + '*'*152 + '\nnumber unique glues:' + str(len(set([tile.glue(direction) for tile in self.tiles for direction in directions])))
 
+        print 'threaded? ', THREADED
         threaded = THREADED
         threaded_tile_pairs = THREADED_TILE_PAIRS
 
@@ -1939,9 +1941,30 @@ def read_starting_seqs(seqs_filename):
 
     return seqs_start
 
+def check_for_nupack():
+    print 'Checking for NUPACK... ',
+    try:
+        sd.duplex("ACGT", 53)
+    except:
+        print 'NUPACK is not installed correctly. Please install it and ensure that pfunc can be called from the command line.'
+        sys.exit(-1)
+    print 'NUPACK is installed correctly'
+
+
+def check_for_viennarna():
+    print 'Checking for Vienna RNA... ',
+    try:
+        sd.RNAduplex_multiple([("ACGT","TGCA")], 53)
+    except:
+        print 'Vienna RNA is not installed correctly. Please install it and ensure that RNADuplex can be called from the command line.'
+        sys.exit(-1)
+    print 'Vienna RNA is installed correctly'
+
 import argparse
 
 if __name__ == "__main__":
+    check_for_viennarna()
+    check_for_nupack()
     parser = argparse.ArgumentParser(description='Design SST strands to implement an abstract aTAM tile set')
     parser.add_argument('-p','--params', help='name of input parameter file', required=True)
     parser.add_argument('-o','--out', help='name of output file', required=True)
