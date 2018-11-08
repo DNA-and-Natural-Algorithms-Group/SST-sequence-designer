@@ -19,6 +19,8 @@ from multiprocessing.pool import ThreadPool
 import itertools
 
 global_thread_pool = ThreadPool()
+DEFAULT_viennaRNA_PARAMETER_SET='nupack_viennaRNA/dna_mathews1999.par'
+
 
 # unix path must be able to find NUPACK, and NUPACKHOME must be set, as described in NUPACK installation instructions.
 
@@ -92,25 +94,27 @@ def pfunc_multiple(seqtuples, temperature, adjust=True):
     return pfunc_energies
 
 
-def RNAduplex_multiple(seqpairs, temperature_in_C): 
+def RNAduplex_multiple(seqpairs, temperature_in_C, NA_parameter_set=''): 
     """Calls RNAduplex on a list of pairs, specifically:
     [ (seq1, seq2), (seq2, seq3), (seq4, seq5), ... ]
     where seqi is a string over {A,C,T,G}. Temperature is in Celsius.
     Returns a list (in the same order as seqpairs) of negation of free energy 
     (so that more favourable means more positive)."""
     
-    # NB: the string parameter_set needs to be exactly the intended filename; 
+    # NB: the string NA_parameter_set needs to be exactly the intended filename; 
     # e.g. any extra whitespace characters causes RNAduplex to default to RNA parameter set without warning the user!
     
-    parameter_set = os.path.join(os.path.dirname(__file__),
-                                 'nupack_viennaRNA/dna_mathews1999.par')    # Gives better agreement with nupack than dna_mathews2004.par. Note that loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
-        
+    if NA_parameter_set=='':
+      NA_parameter_set = os.path.join(os.path.dirname(__file__),
+                                 DEFAULT_viennaRNA_PARAMETER_SET)    # Gives better agreement with nupack than dna_mathews2004.par. Note that loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
+
+
     # process the input into a string
     user_input = '\n'.join(seqpair[0]+'\n'+seqpair[1] for seqpair in seqpairs) + '\n@\n'
 
     got_results = False
     while not got_results:
-        p=sub.Popen(['RNAduplex','-P', parameter_set, '-T', str(temperature_in_C), '--noGU'], # , '--noconv' make sense to use this, but it's untested by us 
+        p=sub.Popen(['RNAduplex','-P', NA_parameter_set, '-T', str(temperature_in_C), '--noGU'], # , '--noconv' make sense to use this, but it's untested by us 
                      stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE) 
         
         try: output, stderr = p.communicate(user_input)
@@ -122,9 +126,9 @@ def RNAduplex_multiple(seqpairs, temperature_in_C):
             print 'error from RNAduplex: ', stderr 
             if stderr.split('\n')[0] != 'WARNING: stacking enthalpies not symmetric':
                 print 'Stopping RNAduplex from loading default (RNA) parameter set'
-                print 'Re-calling RNAduplex due to an error (using DNA parameter file ' + parameter_set +')'
+                print 'Re-calling RNAduplex due to an error (using DNA parameter file ' + NA_parameter_set +')'
                 print 'RNAduplex says:' + str(stderr.split('\n')[0])
-#                 raise ValueError('RNAduplex error: Error reading parameter file ' + parameter_set)  
+#                 raise ValueError('RNAduplex error: Error reading parameter file ' + NA_parameter_set)  
             got_results = False
         else:
             lines = output.split('\n')
@@ -148,8 +152,11 @@ def RNAcofold_multiple(seqpairs, temperature_in_C):
     # e.g. any extra whitespace characters causes RNAduplex to default to RNA parameter set without warning the user!
     
     # parameter_set = 'dna_mathews2004.par'  # Loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
-    parameter_set = 'dna_mathews1999.par'    # Gives better agreement with nupack than dna_mathews2004.par
-    
+    #parameter_set = 'dna_mathews1999.par'    # Gives better agreement with nupack than dna_mathews2004.par
+    parameter_set = os.path.join(os.path.dirname(__file__),
+                                 'nupack_viennaRNA/dna_mathews1999.par')    # Gives better agreement with nupack than dna_mathews2004.par. Note that loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
+
+
     # process the input into a string
     user_input = '\n'.join(seqpair[0]+'&'+seqpair[1] for seqpair in seqpairs) + '\n@\n'
 
