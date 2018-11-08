@@ -2,6 +2,7 @@
 Top-level file for DNA single-stranded tile (SST) sequence designer used in the following publication.
  "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly"
  Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
+With special thanks to Constantine Evans. 
 
 This program takes as input a set of tile types and outputs SSTs encoding them, given as a parameter
 file using the syntax given in, for example  ./input_tilesets/ibc_6bit.py. 
@@ -1455,12 +1456,6 @@ class TileSet:
     def __str__(self):
         return str(self.tiles)
 
-
-@lru_cache(maxsize=10000000)
-def tile_tile_heuristic_interaction(seq1, seq2, temperature):
-    '''Return True if seq1 and seq2 interact too much according to our quick
-    heuristic method of checking subsequences consisting of long substrings.'''
-    raise NotImplementedError()
 
 def all_pairs_except(iterable, exclude):
     "Returns all pairs of elements (e1,e2) except those with exclude(e1,e2) true."
