@@ -90,11 +90,11 @@ for i in range(N):
             'W': 'glue_EW_'+str(i)+'x'+str(j)
     })
 
-print "========================================================"
-print "Each SST strand has domains in 5' -> 3' order:  S W N E "
-print "========================================================"
-print tiles
-print "========================================================"
+print("========================================================")
+print("Each SST strand has domains in 5' -> 3' order:  S W N E ")
+print("========================================================")
+print(tiles)
+print("========================================================")
 
 
 # glues that need biotins, and in which direction 

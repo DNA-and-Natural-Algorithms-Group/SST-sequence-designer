@@ -7,15 +7,14 @@ Generally sst_dsd processes Python 'ACTG' strings (as opposed to numpy arrays wh
 '''
 
 
-
+from __future__ import division
 import dsd
 import numpy as np
 import math, string, random, sys, os
 import subprocess as sub
 import time
 import datetime
-# from lru_cache import lru_cache # this was used when we had a hand-rolled lru_cache, but it's now in Python 3
-from functools import lru_cache 
+from lru_cache import lru_cache
 from multiprocessing.pool import ThreadPool
 import itertools
 
@@ -40,22 +39,17 @@ def pfunc(seqtuple,temperature,adjust=True):
     Returns negation of normal free energy so that result will be positive."""
     if type(seqtuple) is str:
         seqtuple = (seqtuple,)
-    user_input = str(len(seqtuple)) + '\n' + '\n'.join(seqtuple) + '\n' + ' '.join(map(str,list(range(1,len(seqtuple)+1))))
-
+    user_input = str(len(seqtuple)) + '\n' + '\n'.join(seqtuple) + '\n' + ' '.join(map(str,range(1,len(seqtuple)+1)))
     p=sub.Popen(['pfunc','-T',str(temperature),'-multi','-material','dna'],
                  stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE)             
-
     try:
-        #output = p.communicate(user_input)[0]
-        output = p.communicate(user_input.encode())[0]
-        output = output.decode()
+        output = p.communicate(user_input)[0]
     except BaseException as error:
         p.kill()
         raise error
+#     output = p.communicate(user_input)[0]
     
-    #lines = output.split('\n')
     lines = output.split('\n')
-
     
     if lines[-4] != "% Free energy (kcal/mol) and partition function:" :
         raise NameError('NUPACK output parsing problem')
@@ -79,14 +73,14 @@ def pfunc_multiple(seqtuples, temperature, adjust=True):
     if type(seqtuples[0]) is str:
         seqtuples = [(seqtuple,) for seqtuple in seqtuples]
         
-    user_input = '\n'.join( str(len(seqtuple)) + '\n' + '\n'.join(seqtuple) + '\n' + ' '.join(map(str,list(range(1,len(seqtuple)+1)))) for seqtuple in seqtuples ) + '\n-1\n'
+    user_input = '\n'.join( str(len(seqtuple)) + '\n' + '\n'.join(seqtuple) + '\n' + ' '.join(map(str,range(1,len(seqtuple)+1))) for seqtuple in seqtuples ) + '\n-1\n'
+    
     
     p=sub.Popen(['pfunc_multi','-T',str(temperature),'-multi','-material','dna'],
                  stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE)   
               
     try:
-        output = p.communicate(user_input.encode())[0]
-        output = output.decode()
+        output = p.communicate(user_input)[0]
     except BaseException as error:
         p.kill()
         raise error
@@ -114,31 +108,26 @@ def RNAduplex_multiple(seqpairs, temperature_in_C, NA_parameter_set=''):
       NA_parameter_set = os.path.join(os.path.dirname(__file__),
                                  DEFAULT_viennaRNA_PARAMETER_SET)    # Gives better agreement with nupack than dna_mathews2004.par. Note that loading parameter set dna_mathews2004.par throws a warning encoded in that parameter set:  WARNING: stacking enthalpies not symmetric
 
+
     # process the input into a string
     user_input = '\n'.join(seqpair[0]+'\n'+seqpair[1] for seqpair in seqpairs) + '\n@\n'
 
     got_results = False
     while not got_results:
-        # When porting the code from python2 to python3 we found an issue with sub.Popen(). 
-        # Passing either of the keyword arguments universal_newlines=True or encoding='utf8' 
-        # solves the problem for python3.6. For python3.7 (but not 3.6) one can use text=True
         p=sub.Popen(['RNAduplex','-P', NA_parameter_set, '-T', str(temperature_in_C), '--noGU'], # , '--noconv' make sense to use this, but it's untested by us 
-                     stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE)  
-
-        try: 
-          output, stderr = p.communicate(user_input.encode())
-          output = output.decode()
-          stderr = stderr.decode()
+                     stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE) 
+        
+        try: output, stderr = p.communicate(user_input)
         except BaseException as error:
             p.kill()
             raise error
         if stderr.strip() != '': # parsing error from RNAduplex 
         #if stderr != '': # parsing error from RNAduplex 
-            print('error from RNAduplex: ', stderr) 
+            print 'error from RNAduplex: ', stderr 
             if stderr.split('\n')[0] != 'WARNING: stacking enthalpies not symmetric':
-                print('Stopping RNAduplex from loading default (RNA) parameter set')
-                print('Re-calling RNAduplex due to an error (using DNA parameter file ' + NA_parameter_set +')')
-                print('RNAduplex says:' + str(stderr.split('\n')[0]))
+                print 'Stopping RNAduplex from loading default (RNA) parameter set'
+                print 'Re-calling RNAduplex due to an error (using DNA parameter file ' + NA_parameter_set +')'
+                print 'RNAduplex says:' + str(stderr.split('\n')[0])
 #                 raise ValueError('RNAduplex error: Error reading parameter file ' + NA_parameter_set)  
             got_results = False
         else:
@@ -149,7 +138,7 @@ def RNAduplex_multiple(seqpairs, temperature_in_C, NA_parameter_set=''):
             if len(lines) - 1 != len(seqpairs):
                 raise ValueError('lengths do not match: #lines:{} #seqpairs:{}'.format(len(lines)-1, len(seqpairs)))
             got_results = True
-    
+               
     return dG_list  # returns negated energies (i.e. more positive is more favourable)
 
 def RNAcofold_multiple(seqpairs, temperature_in_C): 
@@ -173,20 +162,17 @@ def RNAcofold_multiple(seqpairs, temperature_in_C):
 
     p=sub.Popen(['RNAcofold','-P', parameter_set, '-T', str(temperature_in_C), '--noGU', '--noconv', '-p'], 
                  stdin=sub.PIPE,stdout=sub.PIPE,stderr=sub.PIPE) 
-
-    try: 
-        output, stderr = p.communicate(user_input.encode())
-        output = output.decode()
-        stderr = stderr.decode()
+    
+    try: output, stderr = p.communicate(user_input)
     except BaseException as error:
         p.kill()
         raise error
-    print('output="', output, '"')
-    print('stderr="', stderr, '"')
+    print 'output="', output, '"'
+    print 'stderr="', stderr, '"'
     if stderr != '': # parsing error from RNAduplex 
-        print(stderr) 
+        print stderr 
         if stderr.split('\n')[0] != 'WARNING: stacking enthalpies not symmetric':
-            print('Stopping RNAduplex from loading default (RNA) parameter set')
+            print 'Stopping RNAduplex from loading default (RNA) parameter set'
             raise ValueError('RNAduplex error: Error reading parameter file ' + parameter_set)  
     return
     
@@ -199,7 +185,7 @@ def RNAcofold_multiple(seqpairs, temperature_in_C):
     return dG_list  # returns negated energies (i.e. more positive is more favourable)
 
 
-_wctable = str.maketrans('ACGTacgt','TGCAtgca')
+_wctable = string.maketrans('ACGTacgt','TGCAtgca')
 def wc(seq):
     '''Return reverse Watson-Crick complement of seq'''
     return seq.translate(_wctable)[::-1]
@@ -254,7 +240,7 @@ def domain_no_sec_struct(seq,temperature,individual,threaded):
 LOG_ENERGY = False
 def log_energy(energy):
     if LOG_ENERGY:
-        print('%.1f' % energy)
+        print '%.1f' % energy
 
 def domain_orthogonal(seq,seqs,temperature,orthogonality,orthogonality_ave=-1,threaded=True):
     '''test orthogonality of domain with all others and their wc complements'''
@@ -356,7 +342,7 @@ def domain_pairwise_concatenated_no_sec_struct(seq,seqs,temperature,concat,conca
 def check(s1, s2, T, orthogonality, pass_tests, idx):
     pass_tests[idx] = (binding(s1,s2,T) <= orthogonality)
 
-_binaryGCTable = str.maketrans('ACTG','0101')
+_binaryGCTable = string.maketrans('ACTG','0101')
 def domain_concatenated_no4GC(seq,seqs):
     '''prevent {G,C}^4 under concatenation'''
     for altseq in seqs:
@@ -489,8 +475,8 @@ def learnSL(lengths,lowPF,highPF,temperature,num_samples = 100):
 
     but that gave too large a range.'''
     inrange = 0
-    print('Searching for optimal SantaLucia energy range within binding energy ' \
-          + 'lowSL %.2f and highSL %.2f\n***********************' % (lowPF,highPF))
+    print 'Searching for optimal SantaLucia energy range within binding energy ' \
+          + 'lowSL %.2f and highSL %.2f\n***********************' % (lowPF,highPF)
     energies = []
     while inrange < num_samples:
         sys.stdout.write('.')
@@ -504,7 +490,7 @@ def learnSL(lengths,lowPF,highPF,temperature,num_samples = 100):
             #print energySL
         sys.stdout.write('.')
         sys.stdout.flush()
-    print()
+    print
     energies.sort()
     #print [round(e,2) for e in energies]
     lowerPos = num_samples//4
@@ -576,7 +562,7 @@ def prefilter_length_10_11(lowDG, highDG, temperature, endGC, convert_to_list=Tr
     s10 = s10.filter_substring(forbidden_subs)
     s11 = s11.filter_substring(forbidden_subs)
     if endGC:
-        print('Removing any domains that end in either A or T; also ensuring every domain has an A or T within 2 indexes of the end')
+        print 'Removing any domains that end in either A or T; also ensuring every domain has an A or T within 2 indexes of the end'
         s10 = s10.filter_endGC()
         s11 = s11.filter_endGC()
     #s10.sortSeqsByWCEnergy()
@@ -612,30 +598,30 @@ def design_domains_10_11(howmany=1, temperature=53.0, lowSL=None, highSL=None,
         raise ValueError('At least one of the pairs (lowSL,highSL) or (lowPF,highPF) must be specified.')
     if lowSL:
         if not highSL: raise ValueError('lowSL specified but not highSL')
-        print('Using user-specified SantaLucia energy range [%.2f,%.2f]' % (lowSL,highSL))
+        print 'Using user-specified SantaLucia energy range [%.2f,%.2f]' % (lowSL,highSL)
     if lowPF:
         if not highPF: raise ValueError('lowPF specified but not highPF')
-        print('Using user-specified partition energy range [%.2f,%.2f]' % (lowPF,highPF))
+        print 'Using user-specified partition energy range [%.2f,%.2f]' % (lowPF,highPF)
 
     if lowSL == None or highSL == None:
-        print('learning SantaLucia energy')
+        print 'learning SantaLucia energy'
         lowSL,spreadSL_ret = learnSL((10,11),lowPF,highPF,temperature)
         if not highSL: highSL = spreadSL_ret
-        print('Using learned SantaLucia energy range [%.2f,%.2f]' % (lowSL,highSL))
+        print 'Using learned SantaLucia energy range [%.2f,%.2f]' % (lowSL,highSL)
         seqs10,seqs11 = prefilter_length_10_11(lowSL,highSL,temperature,endGC)
     elif lowPF == None or highPF == None:
         s10,s11 = prefilter_length_10_11(lowSL,highSL,temperature,endGC,convert_to_list=False)
-        print('learning partition energy')
+        print 'learning partition energy'
         lowPF,highPF = learnPF((s10,s11),temperature,num_samples=100)
-        print('Using learned partition energy range [%.2f,%.2f]' % (lowPF,highPF))
+        print 'Using learned partition energy range [%.2f,%.2f]' % (lowPF,highPF)
         seqs10 = s10.toList()
         seqs11 = s11.toList()
     elif lowPF and lowSL and highPF and highSL:
         seqs10,seqs11 = prefilter_length_10_11(lowSL,highSL,temperature,endGC)
 
 
-    print('num length-10 seqs found:%d' % len(seqs10))
-    print('num length-11 seqs found:%d' % len(seqs11))
+    print 'num length-10 seqs found:%d' % len(seqs10)
+    print 'num length-11 seqs found:%d' % len(seqs11)
     random.shuffle(seqs10)
     random.shuffle(seqs11)
     new_seqs = []
@@ -667,16 +653,16 @@ def design_domains_10_11(howmany=1, temperature=53.0, lowSL=None, highSL=None,
             else: num_searched11 += num_searched
             if seq:
                 new_seqs.append(seq)
-                print(seq)
-                print((' time: %5.1f secs' % tot_time))
-                print((' length 10 searched:  %6d' % num_searched10), end=' ')
-                print((' length 10 remaining: %6d' % (num_total10-num_searched10)), end=' ')
-                print((' length 11 searched:  %6d' % num_searched11), end=' ')
-                print((' length 11 remaining: %6d' % (num_total11-num_searched11)))
+                print seq
+                print (' time: %5.1f secs' % tot_time)
+                print (' length 10 searched:  %6d' % num_searched10),
+                print (' length 10 remaining: %6d' % (num_total10-num_searched10)),
+                print (' length 11 searched:  %6d' % num_searched11),
+                print (' length 11 remaining: %6d' % (num_total11-num_searched11))
                 f.write(seq+'\n')
                 f.flush()
             else:
-                print('Could not find %d sequences matching your criteria' % howmany)
+                print 'Could not find %d sequences matching your criteria' % howmany
                 break
             on10 = not on10
     if pr: pr.disable()
@@ -731,14 +717,14 @@ def main():
                                    init_seqs=init_seqs, endGC=True)
 
     delim = '*'*79
-    print(delim)
-    print('Python representation:')
-    print(delim)
-    print('s10 = %s' % s10)
-    print('s11 = %s' % s11)
-    print(delim)
-    print('Sequences delimited by newlines:')
-    print(delim)
+    print delim
+    print 'Python representation:'
+    print delim
+    print 's10 = %s' % s10
+    print 's11 = %s' % s11
+    print delim
+    print 'Sequences delimited by newlines:'
+    print delim
     for s in s10: print(s)
     for s in s11: print(s)
 
