@@ -53,7 +53,7 @@ that x and y* have very low binding affinity.
 Regarding criterion (5), we would want y* and w* to have little interaction, and w and x to have little interaction. 
 '''
 
-
+from __future__ import division
 import dsd
 import sst_dsd as sd
 import random
@@ -65,6 +65,7 @@ import time
 import multiprocessing
 from multiprocessing.pool import ThreadPool
 import math
+from lru_cache import lru_cache
 import re
 
 global_thread_pool = ThreadPool()
@@ -107,7 +108,7 @@ def direction2axis(direction):
     elif direction == 'W': return 'EW'
     else:                  raise ValueError('%s is not a direction' % direction)
 
-_wctable = str.maketrans('ACGTacgt','TGCAtgca')
+_wctable = string.maketrans('ACGTacgt','TGCAtgca')
 def wc(seq):
     '''Return reverse Watson-Crick complement of seq'''
     return seq.translate(_wctable)[::-1]
@@ -348,7 +349,7 @@ class EndConstraint:
 
     def end_constraints():
         '''Return list of all EndConstraints created in system.'''
-        return list(EndConstraint._end_constraints.values())
+        return EndConstraint._end_constraints.values()
 
     end_constraints = staticmethod(end_constraints)
 
@@ -411,7 +412,7 @@ class Tile:
         self.sec_struct = sec_struct
         self.orth = orth
         self.orth_share = orth_share
-        for (direction,glue) in list(self.glues.items()):
+        for (direction,glue) in self.glues.items():
             if glue.bound():
                 seq = glue.get_end(direction)
                 seq_len = len(seq)
@@ -455,12 +456,12 @@ class Tile:
 
     def all_glues(self):
         '''Return all glues on this tile.'''
-        return list(self.glues.values())
+        return self.glues.values()
 
     def unbound_glues(self):
         '''Return all unbound glues on this tile.'''
         uncons_glues = []
-        for glue in self.glues.values():
+        for glue in self.glues.viewvalues():
             if not glue.bound():
                 uncons_glues.append(glue)
         return uncons_glues
@@ -557,13 +558,13 @@ def split(l, num):
     n = len(l) // num
     if len(l) % num != 0:
         n += 1
-    for i in range(0, len(l), n):
+    for i in xrange(0, len(l), n):
         yield l[i:i+n]
 
 LOG_BAD_GLUES = False
 def log_bad_glues(reason):
     if LOG_BAD_GLUES:
-        print(reason + ';', end=' ')
+        print reason + ';',
 
 class TileSet:
     def __init__(self, tiles, detect_nondeterminism, mutually_exclusive_tilename_pairs):
@@ -668,7 +669,7 @@ class TileSet:
                             if not g2.bound():
                                 bad_glues.append(g2)
                             if g1.bound() and g2.bound():
-                                print('\n' + '*' * 79 + 'WARNING: glues %s and %s on tile %s are bound to sequences %s and %s, which produces a G quadruplex\n' % (g1, g2, tile, end1, end2))
+                                print '\n' + '*' * 79 + 'WARNING: glues %s and %s on tile %s are bound to sequences %s and %s, which produces a G quadruplex\n' % (g1, g2, tile, end1, end2)
         return bad_glues
 
     def check_every_glue(self, temperature):
@@ -1108,7 +1109,7 @@ class TileSet:
             else:
                 energies = sd.RNAduplex_multiple(tile_pair_seqs, temperature)
 
-            self.tile_pair_name2energy_most_recent = dict(list(zip(tile_pair_names_to_check_this_time, energies)))
+            self.tile_pair_name2energy_most_recent = dict(zip(tile_pair_names_to_check_this_time, energies))
 
             bad_glues = []
             # assign bad glues based on bad tile pairs
@@ -1146,7 +1147,7 @@ class TileSet:
         else:
             energies = sd.RNAduplex_multiple(tile_pair_seqs, temperature)
 
-        tile_pair_name2energy = dict(list(zip(tile_pair_names_to_check_this_time, energies)))
+        tile_pair_name2energy = dict(zip(tile_pair_names_to_check_this_time, energies))
 
         return tile_pair_name2energy
 
@@ -1171,12 +1172,12 @@ class TileSet:
         unwanted interactions.'''
         global global_thread_pool
         if multiprocessing.cpu_count() != global_thread_pool._processes:
-            print('number of cpus changed from %d to %d; allocating new thread pool' % (global_thread_pool._processes, multiprocessing.cpu_count()))
+            print 'number of cpus changed from %d to %d; allocating new thread pool' % (global_thread_pool._processes, multiprocessing.cpu_count())
             global_thread_pool = ThreadPool()
         new_bad_glues = []
         self.width = 18
         width=self.width
-        print('{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}'.format('tile sec struct', 'alg conf 1st', 'alg conf gen', 'lattice binding','in glue pair', 'out glue pair', 'tile pair', 'total', width=width))
+        print '{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}|{:^{width}}'.format('tile sec struct', 'alg conf 1st', 'alg conf gen', 'lattice binding','in glue pair', 'out glue pair', 'tile pair', 'total', width=width)
         sys.stdout.flush()
 #         new_bad_glues.extend(self.check4G())
 #         if num_bad_opt > 0 and len(new_bad_glues) > num_bad_opt: return new_bad_glues
@@ -1289,9 +1290,9 @@ class TileSet:
         permutations of ends.
 
         Uses stochastic local search heuristic.'''
-        print('\n' + '*'*152 + '\nnumber unique glues:' + str(len(set([tile.glue(direction) for tile in self.tiles for direction in directions]))))
+        print '\n' + '*'*152 + '\nnumber unique glues:' + str(len(set([tile.glue(direction) for tile in self.tiles for direction in directions])))
 
-        print('threaded? ', THREADED)
+        print 'threaded? ', THREADED
         threaded = THREADED
         threaded_tile_pairs = THREADED_TILE_PAIRS
 
@@ -1309,13 +1310,13 @@ class TileSet:
 
         self.assign_initial_ends(temperature, seqs_start)
 
-        print('*'*152 + '\nformat of errors below indicating number of "bad glues" (glues causing problems meeting constraints) due to different sources: \n  <number in best glues found so far># <number in current iteration>/ <number in first iteration>\n' + '*'*152)
+        print  '*'*152 + '\nformat of errors below indicating number of "bad glues" (glues causing problems meeting constraints) due to different sources: \n  <number in best glues found so far># <number in current iteration>/ <number in first iteration>\n' + '*'*152
 
-        print('Finding initial set of %s' % ('bad glues'))
+        print 'Finding initial set of %s' % ('bad glues')
         start = time.time()
         bad_glues_opt = self.find_bad_glues(temperature=temperature, num_bad_opt=-1, threaded=threaded, threaded_tile_pairs=threaded_tile_pairs, check_tile_pairs=check_tile_pairs)
         end = time.time()
-        print('\n' + '*'*152 + ('\n** %.2f seconds for first call to find_bad_glue' % ((end - start))))
+        print '\n' + '*'*152 + ('\n** %.2f seconds for first call to find_bad_glue' % ((end - start)))
 
         self.update_cached_num_bad_glues()
         self.write_tile_sequences_to_file(out_filename, len(bad_glues_opt), 0)
@@ -1326,11 +1327,11 @@ class TileSet:
             self.tile_pair_name2energy_opt = self.tile_pair_name2energy_most_recent
 
         iteration = 1
-        print('*'*152 + '\nInitial number of bad glues %d:' % len(bad_glues_opt))
+        print '*'*152 + '\nInitial number of bad glues %d:' % len(bad_glues_opt)
         picked_ends = list(set(glue.canonical_end() for glue in self.glues()))
 
         while len(bad_glues_opt) > 0:
-            print('*'*152)
+            print '*'*152
             iteration += 1
 
             glue = random.choice(bad_glues_opt)# DW: pick a bad glue
@@ -1355,7 +1356,7 @@ class TileSet:
                                                 check_tile_pairs=check_tile_pairs)
             end = time.time()
             self.log_bad_glue_source(len(new_bad_glues), len(bad_glues_opt), self.num_bad_glues_orig, '')
-            print('\niteration %d; %.2f seconds' % (iteration, (end - start)))
+            print '\niteration %d; %.2f seconds' % (iteration, (end - start))
 
             num_worse = len(new_bad_glues) - len(bad_glues_opt)
 #             print 'bad glues: %d in optimal sequences; %d if change made' % (len(bad_glues_opt), len(new_bad_glues))
@@ -1379,7 +1380,7 @@ class TileSet:
                 # XXX: this must be done outside of check_tile_pairs_heuristic because we only want to update
                 #      self.tile_pair_name2energy_opt if this is a new optimal sequence assignment
                 if check_tile_pairs:
-                    for ((t1name,t2name), energy) in self.tile_pair_name2energy_most_recent.items():
+                    for ((t1name,t2name), energy) in self.tile_pair_name2energy_most_recent.viewitems():
                         self.tile_pair_name2energy_opt[(t1name,t2name)] = energy
 #                     old_energy = self.tile_pair_name2energy_opt[(t1name,t2name)]
 #                     print '  updating tiles {:12s} and {:12s} from old energy {:2.2f} to new energy {:2.2f}'.format(t1name, t2name, old_energy, energy)
@@ -1390,7 +1391,7 @@ class TileSet:
     def write_tile_sequences_to_file(self, out_filename, num_bad_glues, iteration):
         ec = self.tiles[0].glue('N').end_constraint
         with open(out_filename, 'w') as f:
-            print('** saving to %s with %d bad glues (weighted) **' % (out_filename, num_bad_glues))
+            print '** saving to %s with %d bad glues (weighted) **' % (out_filename, num_bad_glues)
             f.write('# saved at iteration %d\n' % iteration)
             #print 'num bad glues: {}'.format(len(bad_glues_opt))
             f.write('# %d bad glues\n' % num_bad_glues)
@@ -1414,7 +1415,7 @@ class TileSet:
 
         It will remove used ends from ec2unused_ends, as well as shuffle those lists.'''
 
-        print('Assigning initial ends to glues {}'.format('based on sequences file' if seqs_start else 'randomly'))
+        print 'Assigning initial ends to glues {}'.format('based on sequences file' if seqs_start else 'randomly')
         picked_ends = list(set(glue.canonical_end() for glue in self.glues_bound()))
         num_left = len(self.glues_unbound())
         for glue in self.glues_unbound():
@@ -1464,7 +1465,7 @@ def all_pairs_except(iterable, exclude):
         e1=args[0]
         e2=args[1]
         return not exclude(e1,e2)
-    return filter(exclude_pack, itertools.combinations_with_replacement(iterable, 2))
+    return itertools.ifilter(exclude_pack, itertools.combinations_with_replacement(iterable, 2))
 
 def eval_lattice_binding_energy(end1,end2,temperature):
     return min(sd.binding(end1+end2,wc(end2)+'TTTTT'+wc(end1),temperature),
@@ -1516,7 +1517,7 @@ def select_new_end_pos(picked_ends, ec, temperature, threaded=True):
     picked_ends_len[10] = [end for end in picked_ends if len(end) == 10]
     picked_ends_len[11] = [end for end in picked_ends if len(end) == 11]
 
-    for end_pos in random_iter(range(len(ec.ends))):
+    for end_pos in random_iter(xrange(len(ec.ends))):
         end = ec.ends[end_pos]
         num_searched += 1
         if wc(end) in picked_ends:
@@ -1525,7 +1526,7 @@ def select_new_end_pos(picked_ends, ec, temperature, threaded=True):
         if end in picked_ends:
             log_bad_end('used_')
             continue
-        if (ec.lowPF is not None) and ec.lowPF > 0 and (ec.highPF is not None) and ec.highPF > 0 and not sd.domain_equal_strength(end,temperature,ec.lowPF,ec.highPF):
+        if ec.lowPF > 0 and ec.highPF > 0 and not sd.domain_equal_strength(end,temperature,ec.lowPF,ec.highPF):
             log_bad_end('eq_')
             continue
         if ec.domain_indv_sec_struct > 0 and not sd.domain_no_sec_struct(end,temperature,ec.domain_indv_sec_struct,threaded):
@@ -1557,10 +1558,10 @@ def select_new_end_pos(picked_ends, ec, temperature, threaded=True):
 def hamming(s1,s2):
     '''Return minimum Hamming distance between s1 and s2, against all shifts if one is longer.'''
     if len(s1) == len(s2):
-        return sum(c1 != c2 for c1, c2 in zip(s1, s2))
+        return sum(c1 != c2 for c1, c2 in itertools.izip(s1, s2))
     if len(s1) > len(s2): s1,s2 = s2,s1
     excess = len(s2) - len(s1)
-    return min( sum(c1 != c2 for c1, c2 in zip(s1, s2[start:start+len(s1)]))
+    return min( sum(c1 != c2 for c1, c2 in itertools.izip(s1, s2[start:start+len(s1)]))
                 for start in range(excess+1))
 
 def hamming_with_wc(end1,end2):
@@ -1607,10 +1608,10 @@ def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter
     all_lengths = { ec.length for ec in end_constraints }
     ends_of_length = { length:dsd.DNASeqList(length=length) for length in all_lengths }
 
-    for (length, ends) in ends_of_length.items():
+    for (length, ends) in ends_of_length.viewitems():
 #         ec = [ec for ec in end_constraints if ec.length == length][0]
 #         ends_of_length[length] = ends
-        print('Removing length-%d domains containing {C,G}^4' % length)
+        print 'Removing length-%d domains containing {C,G}^4' % length
         ends = ends.filter_substring(forbidden_subs)
         ends_of_length[length] = ends
 #         ends_lst = ends.toList()
@@ -1629,14 +1630,14 @@ def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter
     for ec in end_constraints:
         ends = ends_of_length[ec.length]
         if ec.endGC:
-            print('Removing length-%d domains that end in A or T' % length)
+            print 'Removing length-%d domains that end in A or T' % length
             ends = ends.filter_endGC()
         if ec.endAT:
-            print('Removing length-%d domains that end in G or C' % length)
+            print 'Removing length-%d domains that end in G or C' % length
             ends = ends.filter_endAT(gc_near_end=False)
         if three_letter_code:
             base_to_remove = 'G' if ec.glues[0].input_parity() else 'C'
-            print("Removing length-%d domains that contain > %d %s's" % (ec.length,three_letter_code_exceptions,base_to_remove))
+            print "Removing length-%d domains that contain > %d %s's" % (ec.length,three_letter_code_exceptions,base_to_remove)
             ends = ends.filter_base_count(base_to_remove, 0, three_letter_code_exceptions)
         if ec.biotin_direction:
             biotin_direction_parity = ec.glues[0].get_parity(ec.biotin_direction)
@@ -1649,24 +1650,24 @@ def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter
                 base = 'A'
                 biotin_canonical_pos = ec.length - 1 - biotin_pos
                 canonical_direction = opposite(ec.biotin_direction)
-            print(('Removing length-%d domains lacking %s at pos %d on %s-facing domain (to place biotin at position %d on %s-facing domain)'
-                  % (ec.length,base, biotin_canonical_pos, canonical_direction, biotin_pos, ec.biotin_direction)))
+            print ('Removing length-%d domains lacking %s at pos %d on %s-facing domain (to place biotin at position %d on %s-facing domain)'
+                  % (ec.length,base, biotin_canonical_pos, canonical_direction, biotin_pos, ec.biotin_direction))
             ends = ends.filter_base_at_pos(biotin_canonical_pos, base)
 #         print 'before filtering based on energy: %d' % ends.numseqs
         ends = ends.filter_energy(ec.lowDG, ec.highDG, temperature)
-        print(('NN binding energy: %d length-%d seqs in (%.1f,%.1f) %s'
+        print ('NN binding energy: %d length-%d seqs in (%.1f,%.1f) %s'
                % (ends.numseqs, ec.length, ec.lowDG, ec.highDG,
-                  '' if not ec.biotin_direction else '[biotin pos ' + str(biotin_pos) + ']')))
+                  '' if not ec.biotin_direction else '[biotin pos ' + str(biotin_pos) + ']'))
         ec.ends = ends.toList()
 
-        sys.stdout.write('Removing from the set of length-{} domains, if they are present, the following domains that are already assigned to glues by user: '.format(ec.length) + ', '.join(s for s in uags[ec.length]) +'. ')
+        sys.stdout.write('Removing from the set of length-{} domains, if they are present, the following domains that are already assigned to glues by user: '.format(length) + ', '.join(s for s in uags[length]) +'. ')
         #print str(len(ec.ends))+ ' number ends before'
         tmp_ends_before = ec.ends
         ec.ends = [end for end in ec.ends if end not in uags[ec.length]]
         if len(ec.ends) == 0:
             raise ValueError('error: no ends of length %d found matching requested parameters' % ec.length)
-        print(str(len(ec.ends))+ ' ends after removal of: ' + str(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))
-           + ' None'*(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))=='') ))
+        print str(len(ec.ends))+ ' ends after removal of: ' + str(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))
+           + ' None'*(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))=='') )
 
 
 
@@ -1674,7 +1675,7 @@ def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
-    return itertools.zip_longest(fillvalue=fillvalue, *args)
+    return itertools.izip_longest(fillvalue=fillvalue, *args)
 
 def alphabet_to_use(three_letter_code, parity, direction):
     '''Return tuple of alphabet to be used for glue in given direction on tile of
@@ -1832,7 +1833,7 @@ def read_tiles_from_file(filename):
     tile_dicts = mod.tiles
     tiles = []
 
-    print('processing read tile descriptions')
+    print 'processing read tile descriptions'
 
     for tile_dict in tile_dicts:
         n_label = tile_dict['N']
@@ -1865,7 +1866,7 @@ def read_tiles_from_file(filename):
                     glue.bind(canonical_seq)
                 else:
                     if canonical_seq != glue.canonical_end():
-                        print('Cannot bind sequence %s to glue %s because it is already bound to sequence %s' % (canonical_seq, glue, glue.canonical_end()))
+                        print 'Cannot bind sequence %s to glue %s because it is already bound to sequence %s' % (canonical_seq, glue, glue.canonical_end())
                 end = glue.get_end(direction, include_biotins=False)
                 if direction == biotin_direction:
                     biotin_pos = biotin_end_pos(direction, parity)
@@ -1892,11 +1893,11 @@ def read_tiles_from_file(filename):
             if tile not in glue.tiles:
                 raise ValueError('ERROR: tile {} not in glue.tiles for glue={}'.format(tile.name, glue.label))
 
-    print('done processing tiles')
+    print 'done processing tiles'
 
     tileset = TileSet(tiles, detect_nondeterminism=detect_nondeterminism, mutually_exclusive_tilename_pairs=mutually_exclusive_tilename_pairs)
 
-    print('done creating tile set')
+    print 'done creating tile set'
 
     if hasattr(mod, 'glue_biotins'):
         for (label,direction) in mod.glue_biotins:
@@ -1941,23 +1942,23 @@ def read_starting_seqs(seqs_filename):
     return seqs_start
 
 def check_for_nupack():
-    print('Checking for NUPACK... ', end=' ')
+    print 'Checking for NUPACK... ',
     try:
         sd.duplex("ACGT", 53)
     except:
-        print('NUPACK is not installed correctly. Please install it and ensure that pfunc can be called from the command line, and that NUPACKHOME is appropriately set.')
+        print 'NUPACK is not installed correctly. Please install it and ensure that pfunc can be called from the command line, and that NUPACKHOME is appropriately set.'
         sys.exit(-1)
-    print('NUPACK is installed correctly')
+    print 'NUPACK is installed correctly'
 
 
 def check_for_viennarna():
-    print('Checking for ViennaRNA... ', end=' ')
+    print 'Checking for ViennaRNA... ',
     try:
         sd.RNAduplex_multiple([("ACGT","TGCA")], 53)
     except:
-        print('Vienna RNA is not installed correctly. Please install it and ensure that RNAduplex can be called from the command line.')
+        print 'Vienna RNA is not installed correctly. Please install it and ensure that RNAduplex can be called from the command line.'
         sys.exit(-1)
-    print('Vienna RNA is installed correctly')
+    print 'Vienna RNA is installed correctly'
 
 import argparse
 
@@ -1976,9 +1977,9 @@ if __name__ == "__main__":
 
     seqs_start = read_starting_seqs(seqs_filename) if seqs_filename else None
 
-    print('number of processes in global thread pool: %d' % global_thread_pool._processes)
+    print 'number of processes in global thread pool: %d' % global_thread_pool._processes
 
-    print('Reading tiles from %s' % in_filename)
+    print 'Reading tiles from %s' % in_filename
 
     tileset, temperature, tlc, tlce, mutually_exclusive_tilename_pairs, usgs = read_tiles_from_file(in_filename)
 
@@ -1989,6 +1990,6 @@ if __name__ == "__main__":
                                     mutually_exclusive_tilename_pairs=mutually_exclusive_tilename_pairs,
                                     seqs_start=seqs_start)
 
-    print()
+    print
     for tile in tileset.tiles:
-        print('%5s %s' % (tile, tile.sequence_spaced(include_biotins=True)))
+        print '%5s %s' % (tile, tile.sequence_spaced(include_biotins=True))

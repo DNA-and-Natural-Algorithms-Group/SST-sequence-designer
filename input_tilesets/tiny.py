@@ -1,30 +1,8 @@
-# parameter file to give input to sequence designer:
-# uniqueNxNfinite.py
-#
-# Creates an NxN array of uniquely-addressed tiles that has poly-T domains on the boundary.
-# 
-# Note 1: While the sequence designer will produce tile sequences for this tile set, please 
-# be aware that atam2ssts was formulated with DNA nanotubes in mind, and with a specific
-# growth direction, and thus we have not evaluated the suitability of these sequences for
-# other growth patterns.  In fact, we recommend that they be taken with extreme caution.
-#
-# Note 2: Because the poly-T sequences are assigned to several glues with different names,
-# the "lattice-binding" score will never reach zero and thus the designer will never halt.
-# You will have to use control-C to stop the process, and then manually kill any residual
-# pfunc processes that may be left running.  But the sequences left in the output file,
-# which is written whenever a new "best sequence" is found, should be usable.  
-#
-# Note 3: You can avoid using the poly-T sequences by setting "glue_sequences = []" and
-# in that case the design process should come to a natural halt.
-#
-# Note 4: This NxN finite array has a similar layout to to the 310-pixel rectangular canvas of 
-# "Complex shapes self-assembled from single-stranded DNA tiles" (Wei, Dai, Yin, Nature, 2012)
-# but has different boundary conditions and orientation (diamond vs square).
 
-N=9
-
+# parameter file to give input to sequence designer. 
 # Note that all energy parameter values are sign-flipped 
 # (i.e. more positive is more favourable)
+
 
 # "global" energy interval for all glues, except those glues with user-specified sequences
 # evaluated using a simple nearest-neighbour model
@@ -78,34 +56,45 @@ endAT = True
 detect_nondeterminism=False
 
 
+'''
+          /----N----#----E---->
+          |
+          |     
+          |
+          \----W----#----S-----    
+/----N----#----E---->
+|
+|
+|
+\----W----#----S-----
+          /----N----#----E---->    
+          |
+          |    
+          |
+          \----W----#----E-----
+'''
 
-
-
-
-
-# algorithmically build a NxN set of tiles, each tile is a python dictionary
-tiles=list()
-for i in range(N):
-  for j in range(N):
-    tiles.append({
-            'name': 'T'+str(i)+'x'+str(j),
-            'parity': (i+j)%2,
-            'N': 'glue_NS_'+str(i+1)+'x'+str(j),
-            'E': 'glue_EW_'+str(i)+'x'+str(j+1),
-            'S': 'glue_NS_'+str(i)+'x'+str(j),
-            'W': 'glue_EW_'+str(i)+'x'+str(j)
-    })
-
-print("========================================================")
-print("Each SST strand has domains in 5' -> 3' order:  S W N E ")
-print("========================================================")
-print(tiles)
-print("========================================================")
+# List of tiles, each tile is a python dictionary
+# This is a small 2-tile example
+tiles = \
+[{'name': 'T0__', 'parity': 1, 'E': 'glue_0',  'N': 'glue_1',  'S': 'glue_3',  'W': 'glue_2'},
+ {'name': 'T1__', 'parity': 0, 'E': 'glue_2',  'N': 'glue_3',  'S': 'glue_1',  'W': 'glue_0'},
+# {'name': 'T2;_;_', 'parity': 1, 'E': 'glue_5',  'N': 'glue_4',  'S': 'glue_6',  'W': 'glue_7'},
+# {'name': 'T3;_;_', 'parity': 0, 'E': 'glue_7',  'N': 'glue_6',  'S': 'glue_8',  'W': 'glue_9'},
+# {'name': 'T4;_;_', 'parity': 1, 'E': 'glue_9',  'N': 'glue_8',  'S': 'glue_10', 'W': 'glue_11'},
+# {'name': 'T5;_;_', 'parity': 0, 'E': 'glue_11', 'N': 'glue_10', 'S': 'glue_12', 'W': 'glue_13'},
+# {'name': 'T6;_;_', 'parity': 1, 'E': 'glue_13', 'N': 'glue_12', 'S': 'glue_14', 'W': 'glue_15'},
+# {'name': 'T7;_;_', 'parity': 0, 'E': 'glue_15', 'N': 'glue_14', 'S': 'glue_16', 'W': 'glue_17'} ,
+# {'name': 'T8;_;_', 'parity': 1, 'E': 'glue_17', 'N': 'glue_16', 'S': 'glue_18', 'W': 'glue_19'},
+# {'name': 'T9;_;_', 'parity': 0, 'E': 'glue_19', 'N': 'glue_18', 'S': 'glue_1',  'W': 'glue_0'}
+]
 
 
 # glues that need biotins, and in which direction 
 # (hence must put an internal biotinylated "T" in domain)
-glue_biotins = []
+glue_biotins = \
+[('glue_0', 'S'),('glue_1', 'S')]
+
 
 def direction2axis(direction):
     if direction in ['N','S']:
@@ -126,14 +115,9 @@ glue_strength_constraints = \
             
 
 # Glues with sequences already assigned to them (note that the sequences are allowed to violate the strength constraints).
-# In particular this is useful when specifying a single "seam tile" for two positions in a proof-reading block, 
+# In particular this is useful when specifiying a single "seam tile" for two posiitons in a proof-reading block, 
 # which we do here as follows (as two tiles with the same sequences):
-glue_sequences = [ ("glue_NS_%dx%d"%(0,i),"S","TTTTTTTTTTT" if i%2==0 else "TTTTTTTTTT") for i in range(N) ] + \
-                 [ ("glue_NS_%dx%d"%(N,i),"N","TTTTTTTTTTT" if (N+i)%2==0 else "TTTTTTTTTT") for i in range(N) ] + \
-                 [ ("glue_EW_%dx%d"%(i,0),"W","TTTTTTTTTTT" if i%2==1 else "TTTTTTTTTT") for i in range(N) ] + \
-                 [ ("glue_EW_%dx%d"%(i,N),"E","TTTTTTTTTTT" if (N+i)%2==1 else "TTTTTTTTTT") for i in range(N) ]
-
-print glue_sequences
+glue_sequences = [] 
 
 # If this is defined, it defines mutually exclusive pairs of tiles (their names, actually) 
 # that will never be together in the same pot 

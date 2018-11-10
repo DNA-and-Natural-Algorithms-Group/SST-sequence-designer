@@ -9,11 +9,10 @@ Shipped with DNA single-stranded tile (SST) sequence designer used in the follow
  Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors)
 '''
 
-
+from __future__ import division
 import numpy as np
 import sst_dsd
-# from lru_cache import lru_cache # this was used when we had a hand-rolled lru_cache, but it's now in Python 3
-from functools import lru_cache 
+from lru_cache import lru_cache
 import itertools as it
 
 PYPY = True
@@ -49,7 +48,7 @@ def seqs2arr(seqs):
     return arr
 
 def arr2seq(arr):
-    basesCh = [_bits2base[base] for base in arr]
+    basesCh = map(lambda base: _bits2base[base], arr)
     return ''.join(basesCh)
 
 def makeArrayWithAllDNASeqs(length,bases=('A','C','G','T')):
@@ -80,7 +79,7 @@ def makeArrayWithAllDNASeqs(length,bases=('A','C','G','T')):
     # the following code makes sure it's 1 byte per base
     powers_numbases = [numbases**k for k in range(length)]
 #         bases = np.array([_base2bits['A'], _base2bits['C'], _base2bits['G'], _base2bits['T']], dtype=np.ubyte)
-    basebits = [_base2bits[base] for base in bases]
+    basebits = map(lambda base: _base2bits[base], bases)
     bases = np.array(basebits, dtype=np.ubyte)
 
     list_of_arrays = False
@@ -89,7 +88,7 @@ def makeArrayWithAllDNASeqs(length,bases=('A','C','G','T')):
         # just before the last command there are two copies of the array
         # in memory at once
         columns = []
-        for i,j,c in zip(reversed(powers_numbases), powers_numbases, list(range(length))):
+        for i,j,c in zip(reversed(powers_numbases), powers_numbases, range(length)):
             columns.append(np.tile(np.repeat(bases, i), j))
         arr = np.vstack(columns).transpose()
     else:
@@ -97,7 +96,7 @@ def makeArrayWithAllDNASeqs(length,bases=('A','C','G','T')):
         # allocates only the final array, plus one extra column of that
         # array at a time
         arr = np.empty((numseqs, length), dtype=np.ubyte)
-        for i,j,c in zip(reversed(powers_numbases), powers_numbases, list(range(length))):
+        for i,j,c in zip(reversed(powers_numbases), powers_numbases, range(length)):
             arr[:,c] = np.tile(np.repeat(bases, i), j)
 
     return arr
@@ -209,7 +208,7 @@ def longest_common_substrings_product(a1s, a2s):
     return (a1idx_longest, a2idx_longest, len_longest)
 
 def pair_index(n):
-    index = np.fromiter(it.chain.from_iterable(it.combinations(range(n), 2)), int, count=n*(n-1))
+    index = np.fromiter(it.chain.from_iterable(it.combinations(xrange(n), 2)), int, count=n*(n-1))
     return index.reshape(-1, 2)
 
 def _longest_common_substrings_pairs(a1s, a2s):
@@ -545,7 +544,7 @@ class DNASeqList(object):
         bases_lst = self.seqarr[slice]
         ret = []
         for bases in bases_lst:
-            basesCh = [_bits2base[base] for base in bases]
+            basesCh = map(lambda base: _bits2base[base], bases)
             ret.append(''.join(basesCh))
         return ret
 
@@ -626,13 +625,13 @@ class DNASeqList(object):
         raise NotImplementedError('this was assuming energies get stored, which no longer is the case')
         pfenergies = np.zeros(self.wcenergies.shape)
         i = 0
-        print('searching through %d sequences for PF energies' % self.numseqs)
+        print 'searching through %d sequences for PF energies' % self.numseqs
         for seq in self.toList():
             energy = sst_dsd.duplex(seq, temperature)
             pfenergies[i] = energy
             i += 1
             if i % 100 == 0:
-                print('searched %d so far' % i)
+                print 'searched %d so far' % i
         within_range = (low <= pfenergies) & (pfenergies <= high)
         new_seqarr = self.seqarr[within_range]
         return DNASeqList(seqarr=new_seqarr)
@@ -709,7 +708,7 @@ class DNASeqList(object):
         subints = [[_base2bits[base] for base in sub] for sub in subs]
         powarr=[4**k for k in range(sublen)]
         subvals = np.dot(subints,powarr)
-        toeplitz = create_toeplitz(self.seqlen, sublen)
+        toeplitz = create_toeplitz(self.seqlen,len(sub))
         convolution = np.dot(toeplitz, self.seqarr.transpose())
         passall = np.ones(self.numseqs,dtype=np.bool)
         for subval in subvals:
@@ -727,9 +726,7 @@ class DNASeqList(object):
         return self.filter_substring(['GGGG','CCCC'])
 
 def create_toeplitz(seqlen,sublen):
-    '''Creates a toeplitz matrix, useful for finding subsequences.
-
-    seqlen is length of larger sequence; sublen is length of substring we're checking for.'''
+    '''Creates a toeplitz matrix, useful for finding subsequences.'''
     powarr = [4**k for k in range(sublen)]
     if _SCIPY_AVAIL:
         import scipy.linalg as linalg
@@ -740,11 +737,12 @@ def create_toeplitz(seqlen,sublen):
         cols = seqlen
         toeplitz = np.zeros((rows,cols),dtype=np.int)
         toeplitz[:,0:sublen] = [powarr]*rows
-        shift = list(range(rows))
+        shift = range(rows)
         for i in range(rows):
             toeplitz[i] = np.roll(toeplitz[i],shift[i])
     return toeplitz
 
+from lru_cache import lru_cache
 @lru_cache(maxsize=32)
 def calculate_loop_energies(temperature):
     '''Get SantaLucia and Hicks nearest-neighbor loop energies for given temperature,
@@ -824,7 +822,7 @@ def hash_ndarray(arr):
     writeable = arr.flags.writeable
     if writeable:
         arr.flags.writeable = False
-    h = hash(bytes(arr.data)) # hash(arr.data)
+    h = hash(arr.data)
     arr.flags.writeable = writeable
     return h
 
