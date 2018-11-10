@@ -34,7 +34,7 @@ let
 
 stdenv.mkDerivation{
   name="nupack_viennaRNA";
-  buildInputs=[coreutils python3 python3Packages.numpy nupack viennaRNA python3Packages.matplotlib]; #       # here I put a list of names of packages I want to install
+  buildInputs=[coreutils python3 python3Packages.numpy nupack viennaRNA python3Packages.matplotlib]; 
   NUPACKHOME="${nupack.out}";
 }
 
