@@ -58,19 +58,32 @@ filelist = ['nupack domain pair binding V RNAduplex domain pair (1999) - non-wc.
 #############################################################################
 
 def parse_args():
-  parser = argparse.ArgumentParser(description='''Program to analyse DNA sequences. Written in python3. 
-  This program runs a barrage of energetics tests on a set of suitably-formatted DNA sequences. 
-  It takes as input a text file with DNA sequences, in idt format, for example:
-  name1,AATCCTAGAA ATTGTTATTTC ATGTATACAAA GATAGATCAG,25nm,STD
-  name2,AACTAGAAAC CTTAGGAATT,25nm,STD
-  name3,TAATACTTTCA TTTATCATCG CTACATTCTT ATTTGTTTATC,25nm,STD
-  Asumes the following commands run on your system:
-  pfunc and mfe (i.e. from NUPACK), RNAduplex (i.e. from ViennaRNA).
+  parser = argparse.ArgumentParser(description='''Python3 script that runs a barrage of energetics 
+  tests on DNA-tile sequences. If you are running a non-algorithmic tile set please use option -nl 
+  (to turn off some tests and prevent errors). Input is given as a text file in IDT format, for example:
+  
+  # Example 1 
+  # Algorithmic SST example. Note that sequences may contain T bases with an ("internal") biotin modification, denoted "/iBiodT/". 
+  # Strand domains (that encode aTAM tile-glues) are separated by a single space. Comments are ignored by the analysis code.
+  # 
+  U3;10->10;sw,AGTGTGTTTTT AGTTCGATGT AGAGGCTTTT ATCAGAGGGAA,25nm,STD
+  U3;10->10;se,ACTCGTTCTT TTCCC/iBiodT/CTGAT TCCTCCAATTA AAAAACGCAA,25nm,STD
+  U3;10->11;nw,AAGAACCACT TTCGTCAAATT ATACATCACCT AACCCACCAA,25nm,STD
 
-  If you are running a non-algorithmic tile set please use option -nl to prevent errors.''',
+  # Example 2
+  # Non-algorithmic example, tile names do not have any ";" symbols. 
+  # This example shows that tiles need not have four domains/glues. 
+  # 
+  tile_name1,AATCCTAGAA ATTGTTATTTC ATGTATACAAA GATAGATCAG,25nm,STD
+  tile_name2,AACTAGAAAC CTTAGGAATT,25nm,STD
+  tile_name3,TAATACTTTCA TTTATCATCG CTACATTCTT ATTTGTTTATC,25nm,STD
+
+  The script makes use of pfunc and mfe from NUPACK, and RNAduplex from ViennaRNA, and assumes these
+  executables are available. 
+''',
 formatter_class=argparse.RawDescriptionHelpFormatter,
-epilog= '''Example usage 1:
-python analyse_seqs_growth_dynamics.py seqs/test_file.idt
+epilog= '''Example usage:
+python analyse_seqs.py input_file.idt
 ''')
   #parser.add_argument('-s', '--seqs', required=True, # action="store_true",
   #        help="Specify a batch file that contains one or more image filenames to process.", default="")
@@ -171,8 +184,8 @@ def run_strand_analysis(seqs, seqs_bt, domains, domains_with_biotin, temp_in_C, 
 
     print(str(len(seqs_bt))+' sequences (where we leave in biotin markers), ' + str(len(seqs))+' sequences (where we do not leave in biotin markers)')
     print(str(len([s for s in seqs_bt if '/iBiodT/' in  s])) +' sequences with biotin markers')
-    if all([len(s)==42 for s in seqs] ): print('I notice that all strands are of length 42 bases')
-    else: 'I notice that some strands are not of length 42 bases'
+    if all([len(s)==42 for s in seqs] ): print('All strands are of length 42 bases')
+    else: 'Some strands are not of length 42 bases'
     print(str(len(domains))+' unique domains (glue sequences), ' +str(len([d for d in domains if len(d)==10])) + ' of length 10, '+str(len([d for d in domains if len(d)==11])) + ' of length 11')
     sys.stdout.flush()
 
@@ -253,6 +266,7 @@ def run_lattice_binding_analysis(f,directory,temp_in_C, lattice_spacer='TTTTT'):
   # check for "first" algo conflicts (single mismatches that are the first error in a proofreading block)
   # first with empty lattice_spacer
   _,_,_ = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer='', threaded=True) 
+
   # then with lattice_spacer='TTTTT'
   _,_,_ = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=True) 
   _,_,_ = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=False) 
@@ -277,6 +291,8 @@ def run_lattice_binding_analysis(f,directory,temp_in_C, lattice_spacer='TTTTT'):
   return list_of_pairs_of_lists, descriptors
 
 
+def algo_format_tile_name(n):
+  return ( len(n.split(";"))==3  and  n.split(";")[2] in ['ne','nw','se','sw'])
 
 
 def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_double_mismatches=False,normed=True,threaded=True):
@@ -295,6 +311,16 @@ def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_dou
   
   names, _, _, seqs, seqs_bt  = read_strand_data_from_idt_order(f)
   domains, domains_incl_biotin_labels = read_domains_from_idt_order(f)
+
+
+  is_algo_tile_set = True
+  for n in names:
+    if not algo_format_tile_name(n): 
+      is_algo_tile_set = False
+  if not(is_algo_tile_set): 
+    print("The input tile set seems to not be an algorithmic tile set since it's tile names are not of the correct format. ") 
+    print("Skipping execution of analyse_row_conflicts().")
+    return 0
 
   if not os.path.exists(directory): os.makedirs(directory)
   print('analyse_row_conflicts(), lattice binding analysis from file:\n'+f+' plots will be placed in: ' + directory)
@@ -569,7 +595,7 @@ def tile_helix(tile_name):
   if d == 'nw' or d == 'se' : return 2*n
   elif d == 'sw': return 2*n-1
   elif d == 'ne': return (2*n+1) % _num_helices
-  else: sys.exit('Exiting program: Error in tile name')
+  else: sys.exit('Exiting program: Error in tile name. Was expecting a tile name with two semi-colons followed by one of nw,ne,se,sw. E.g. U6;00->00;ne.')
 
 def tile_dir(name):
   return name[10:12]
@@ -583,6 +609,7 @@ def analyse_algo_conflicts(f,directory,temp_in_C=53,lattice_spacer='TTTTT',threa
 
   names, _, _, seqs, seqs_bt  = read_strand_data_from_idt_order(f)
   domains, domains_incl_biotin_labels = read_domains_from_idt_order(f)
+
   # in older version of code, this was :
   # names, _, _ , seqs, seqs_bt = read_tiles_from_idt_order(f)
   # seqs have spaces between domains
@@ -752,7 +779,6 @@ def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,seq_ws
 
   print('  analysing tile input and output sec structure'); sys.stdout.flush()
 
-  pprint.pprint(domains)
   if non_standard_tiles:
     print(seq_ws)
     seq_ws = [s.split()[0]+' '+s.split()[2]+' '+s.split()[3]+' '+s.split()[5] for s in seq_ws if len(s.split())==6]
@@ -891,6 +917,8 @@ def read_domains_from_idt_order(filename, non_standard_tiles=0):
     return list(set(doms)), list(set(doms_with_biotin))
 
 
+
+
 #############################################################################
 # Plots 
 #############################################################################
@@ -900,23 +928,24 @@ def histogram(data, labels='', xaxis='', yaxis='', title='', filename='', plot_d
               legend_location='upper left'):
   '''PLot a histogram. By default data is normalized (area under curve 
   sums to 1 for each dataset (curve colour))'''
+  min_data = 10000; max_data = -10000
 
+  # Fix up function param types/formatting
   if filename=='': filename=title
-
   if type(data)!=list: data = [data]
   if labels=='':labels=['' for _ in data]
-  
   if title!='': filename = title
   else: filename = '_'.join(l for l in labels)
       
   pp = PdfPages(plot_dir + filename + '.pdf')
   colours = itertools.cycle(['r','b','g','y'])
   
-  min_data = 10000; max_data = -10000
   for i,d in enumerate(data):
-    min_data = min(min_data,min(d)) 
-    max_data = max(max_data,max(d)) 
-      
+    if d!= []:     #assert len(d)!=0
+      min_data = min(min_data,min(d)) 
+      max_data = max(max_data,max(d)) 
+
+  # binning      
   num_bins = 50
   step_size = (max_data-min_data)/num_bins
   bins = [min_data+(i*step_size) for i in range(num_bins)  ]
@@ -924,7 +953,8 @@ def histogram(data, labels='', xaxis='', yaxis='', title='', filename='', plot_d
   # bins = num_bins
 
   for i,d in enumerate(data):
-    ax = plt.hist(d, bins, normed=normed, 
+    if d != []:
+      ax = plt.hist(d, bins, normed=normed, 
                   range=[2.0,18.0],
                   histtype='stepfilled', 
                   facecolor=next(colours), alpha=0.5, edgecolor='black', 
@@ -1390,7 +1420,8 @@ if __name__ == "__main__":
   domain_analysis = not(type(args.no_domains)==bool and args.no_domains)
   tile_pair_check = not(type(args.no_tile_pairs)==bool and args.no_tile_pairs) 
   strand_analysis = not(type(args.no_strand_analysis)==bool and args.no_strand_analysis)
-  lattice_binding_analysis = not(type(args.no_lattice_binding)==bool and args.no_lattice_binding)
+  is_algorithmic_tile_set = not(type(args.no_lattice_binding)==bool and args.no_lattice_binding)
+  lattice_binding_analysis = is_algorithmic_tile_set 
   mfe_analysis = not(type(args.no_mfe_analysis)==bool and args.no_mfe_analysis) 
   non_standard_tiles = type(args.non_standard_tiles)==bool and args.non_standard_tiles 
 
