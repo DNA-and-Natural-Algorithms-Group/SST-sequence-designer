@@ -4,13 +4,14 @@ import math,string,random,sys,os,time,itertools,pickle,pprint  #os.path,
 import subprocess as sub
 import numpy as np
 import argparse as argparse
-from functools import lru_cache 
-from datetime import datetime
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.backends.backend_pdf import PdfPages
 import multiprocessing
 from multiprocessing.pool import ThreadPool
+from functools import lru_cache 
+from datetime import datetime
 global_thread_pool = ThreadPool()
 
 MORE_NEGAIVE_ENERGY_IS_MORE_FAVOURABLE=1
@@ -31,18 +32,7 @@ _check_double_mismatches = False # Setting to False speeds up lattice binding an
 _num_helices=16    
 _bad_lattice_binding_to_arbitrary_lattice_threshold = -10.0
 
-#_check_double_mismatches = False # Setting to False speeds up lattice binding analysis
-#_num_helices=16    # we should get rid of this?
-# files = ['example_idt_file.idt', 
-#          'a-form-ss1.65_orth5.4_orthshr7.4_algo1.6_algoGen2.6_cl1.4_lb12.3_evalColUpdated7_no_adapters.idt',
-#         'a-form-ss1.65_orth5.4_orthshr7.4_algo1.6_algoGen2.6_cl1.4_lb12.3_evalColUpdated7.idt']
-# files = ['example_idt_file.idt']
-# files = ['seq_set_1__2017_5_12.idt']
-# files = ['seq_set_2__2017_5_17.idt']
-# files = ['seq_set_E16__2017_7_3.idt']
-
-#print 'done'; sys.stdout.flush()
-
+# Some output filenames
 filelist = ['nupack domain pair binding V RNAduplex domain pair (1999) - non-wc.pdf',
             'nupack domain pair binding V RNAduplex domain pair (1999) - wc.pdf',
             'dG of lattice+tile-lattice-tile V binding(tile,lattice).pdf',
@@ -97,7 +87,7 @@ python analyse_seqs.py input_file.idt
   #        help="Analyse secondary structure energy of individual strands.", default="")
 
   parser.add_argument('-T', '--temperature', required=False, type=float,  # action="store", dest="query",
-          help="Temperature in C to analyse sequences. Default is 53.0 C")
+          help="Temperature in C to analyse sequences. Default temperature is 53.0 C")
   parser.add_argument('-nl', '--no-lattice-binding', required=False, action="store_true",  # action="store", dest="query",
           help="Do not run analysis of lattice-binding properties (includes analysis of algorithmic errors -- probably only works for algorithmic tile sets.", default="")
   parser.add_argument('-nd', '--no-domains', required=False, action="store_true",  # action="store", dest="query",
@@ -298,16 +288,6 @@ def algo_format_tile_name(n):
 def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_double_mismatches=False,normed=True,threaded=True):
   '''Nupack binding() energy of row-conflicting tile (single-mismatch that can arise 
   during correct and incorrect growth) ... TODO: explain row-conflict'''
-  #idt_file = _idt_file
-  # filename = f
-  # #filename = _idt_order_dir+f[0]
-  # #directory = _idt_order_dir+f[0]+'_analysis/domains/'
-  # if not idt_file:
-  #     names, _,_, domains, domains_incl_biotin_labels,seqs,seqs_bt = read_file(filename)
-  # else: # idt file
-  #     names, _, _ , seqs, seqs_bt = read_tiles_from_idt_order(filename)
-  #     # seqs have spaces between domains
-  #     domains, domains_incl_biotin_labels = read_domains_from_idt_order(filename)        
   
   names, _, _, seqs, seqs_bt  = read_strand_data_from_idt_order(f)
   domains, domains_incl_biotin_labels = read_domains_from_idt_order(f)
@@ -860,7 +840,7 @@ def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,seq_ws
 # Reading from idt-formatted files (with extension .idt) 
 #############################################################################
 
-def get_lines_from_idt_file(filename):
+def get_lines_from_file(filename):
     '''Reads uncommented and non-empty lines from an IDT-formatted file'''
     with open(filename, 'r') as f:
         lines = f.readlines()
@@ -875,12 +855,12 @@ def get_DNA_sequences_from_idt_file(f):
     return get_testtube_DNA_sequences_from_idt_file(f) +  get_plate_DNA_sequences_from_idt_file(f)
 
 def get_testtube_lines_from_idt_file(f):
-    lines = get_lines_from_idt_file(f)
+    lines = get_lines_from_file(f)
     return [l for l in lines if len(l.split(','))==4 and is_DNA_sequence(l.split(',')[1]) and 'guard' not in l]
         
 def get_plate_lines_from_idt_file(f):
     '''Ignores any line containing the word guard'''
-    lines = get_lines_from_idt_file(f)
+    lines = get_lines_from_file(f)
     return [l for l in lines if len(l.split(','))==4 and is_DNA_sequence(l.split(',')[2]) and 'guard' not in l]
         
 def read_strand_data_from_idt_order(f):
@@ -1397,10 +1377,77 @@ def eval_colocated_end_pair(end1, end2, temperature):
 #               hairpin(end1+'T'*4+end2, temperature)) 
 
 
+def idt_format_line(line):
+  print(line)
+  return len(line.split(","))==4 and set(line.split(",")[1]).issubset(set("ATCG atcg /iBiodT/"))
+
+def seq_designer_format_line(line):
+  return len(line.split("  "))==2 and set(line.split("  ")[1]).issubset(set("ATCG atcg /iBiodT/"))
+
+def determine_file_type(f):
+  lines = get_lines_from_file(f)   # removes "#"-comments
+  consistent_with_idt_file = 1
+  consistent_with_seq_designer_format_file = 1
+  for line in lines:
+    if not ( idt_format_line(line) ): consistent_with_idt_file=0
+    if not ( seq_designer_format_line(line) ): consistent_with_seq_designer_format_file=0
+  
+  if consistent_with_seq_designer_format_file: 
+    print("Input file is in format of sequence designer.")
+    return "Sequence designer format"
+  elif consistent_with_idt_file: 
+    print("Input file is in IDT format.")
+    return "IDT format"
+  else: 
+    print("Input file is in unknown format.")
+    return "unknown format"
+
+def sequencer_designer_file_format_to_IDT_file_format(input_filename):
+  try:
+    in_file = open(input_filename, "r")
+  except IOError:
+    print("file does not exist: " + input_filename); exit()
+  print("processing file: "+input_filename)
+
+  output_filename = os.path.splitext(input_filename)[0]+".idt"
+  out_file = open(output_filename, "w")
+
+  for line in in_file:
+    l=line.strip()
+
+    if l.startswith("#"):
+      out_file.write(l+"\n") 
+
+    if not l.startswith("#") and not l=="":
+      name, sequence = l.split("  ")
+
+
+      new_line = name+","+sequence
+      if "/iBiodT/" in sequence: new_line+=",100nm,HPLC"
+      else: new_line+=",25nm,STD"
+      #print(new_line)
+      out_file.write(new_line+"\n") 
+
+  if "/iBiodT/" in ''.join(line for line in open(input_filename, "r")):
+    print("Some strands have biotins (/iBiodT/), those were placed at 100nm scale (all other strands at 25nm scale)")
+  print("\nGenerated IDT format file with filename: "+output_filename+"\n")
+  return output_filename
+
+
+
 def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,lattice_binding_analysis=1,mfe_analysis=1,non_standard_tiles=0):
-  # files is a list of paths to files with sequences in the appropraite format
+  # files is a list of paths to files with sequences in the appropriate format
   for f in files: 
     # Here, the following two lines are executed only for the purpose of syntax checking the input files.
+    
+    input_format = determine_file_type(f)
+    if input_format == "Sequence designer format":
+      #exit("TODO: Convert file format and write IDT file")
+      f = sequencer_designer_file_format_to_IDT_file_format(f)
+    elif input_format == "unknown format":
+      exit("Error: Unknown file format")
+
+
     domains, domains_with_biotin = read_domains_from_idt_order(f,non_standard_tiles)
     names, seqs, seqs_bt, seq_ws, seq_ws_bt = read_strand_data_from_idt_order(f)
     
@@ -1424,13 +1471,8 @@ if __name__ == "__main__":
   lattice_binding_analysis = is_algorithmic_tile_set 
   mfe_analysis = not(type(args.no_mfe_analysis)==bool and args.no_mfe_analysis) 
   non_standard_tiles = type(args.non_standard_tiles)==bool and args.non_standard_tiles 
-
-
-  #temperature = not(type(args.temperature)==float and args.temperature)
-  if args.temperature:
-    temp_in_C = args.temperature
-  else:
-    temp_in_C = _default_temp_in_C
+  if args.temperature: temp_in_C = args.temperature
+  else: temp_in_C = _default_temp_in_C
 
   main(files=files,temp_in_C=temp_in_C,domain_analysis=domain_analysis,strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,lattice_binding_analysis=lattice_binding_analysis,mfe_analysis=mfe_analysis,non_standard_tiles=non_standard_tiles)
 
