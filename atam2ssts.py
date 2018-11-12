@@ -53,6 +53,7 @@ that x and y* have very low binding affinity.
 Regarding criterion (5), we would want y* and w* to have little interaction, and w and x to have little interaction. 
 '''
 
+from __future__ import print_function
 
 import dsd
 import sst_dsd as sd
@@ -107,7 +108,12 @@ def direction2axis(direction):
     elif direction == 'W': return 'EW'
     else:                  raise ValueError('%s is not a direction' % direction)
 
-_wctable = str.maketrans('ACGTacgt','TGCAtgca')
+# maketrans is in string if python2 but in str if python3
+try:
+    _wctable = str.maketrans('ACGTacgt','TGCAtgca')
+except:
+    _wctable = string.maketrans('ACGTacgt','TGCAtgca')
+
 def wc(seq):
     '''Return reverse Watson-Crick complement of seq'''
     return seq.translate(_wctable)[::-1]
@@ -1668,13 +1674,16 @@ def prefilter_ends(end_constraints, temperature, three_letter_code, three_letter
         print(str(len(ec.ends))+ ' ends after removal of: ' + str(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))
            + ' None'*(', '.join(list(set(tmp_ends_before).difference(set(ec.ends))))=='') ))
 
-
+try:
+    _zip_longest = itertools.zip_longest # python3
+except:
+    _zip_longest = itertools.izip_longest # python2
 
 def grouper(iterable, n, fillvalue=None):
     "Collect data into fixed-length chunks or blocks"
     # grouper('ABCDEFG', 3, 'x') --> ABC DEF Gxx
     args = [iter(iterable)] * n
-    return itertools.zip_longest(fillvalue=fillvalue, *args)
+    return _zip_longest(fillvalue=fillvalue, *args)
 
 def alphabet_to_use(three_letter_code, parity, direction):
     '''Return tuple of alphabet to be used for glue in given direction on tile of

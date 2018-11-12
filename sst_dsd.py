@@ -6,7 +6,7 @@ Shipped with DNA single-stranded tile (SST) sequence designer used in the follow
 Generally sst_dsd processes Python 'ACTG' strings (as opposed to numpy arrays which are processed by dsd).
 '''
 
-
+from __future__ import print_function
 
 import dsd
 import numpy as np
@@ -14,10 +14,15 @@ import math, string, random, sys, os
 import subprocess as sub
 import time
 import datetime
-# from lru_cache import lru_cache # this was used when we had a hand-rolled lru_cache, but it's now in Python 3
-from functools import lru_cache 
 from multiprocessing.pool import ThreadPool
 import itertools
+
+# from lru_cache import lru_cache # this was used when we had a hand-rolled lru_cache, but it's now in Python 3
+try:
+    from functools import lru_cache 
+except:
+    # in case this is python2
+    from lru_cache import lru_cache
 
 global_thread_pool = ThreadPool()
 DEFAULT_viennaRNA_PARAMETER_SET='nupack_viennaRNA/dna_mathews1999.par'
@@ -198,8 +203,12 @@ def RNAcofold_multiple(seqpairs, temperature_in_C):
         raise ValueError('lengths do not match: #lines:{} #seqpairs:{}'.format(len(lines)-1, len(seqpairs)))
     return dG_list  # returns negated energies (i.e. more positive is more favourable)
 
+# maketrans is in string if python2 but in str if python3
+try:
+    _wctable = str.maketrans('ACGTacgt','TGCAtgca')
+except:
+    _wctable = string.maketrans('ACGTacgt','TGCAtgca')
 
-_wctable = str.maketrans('ACGTacgt','TGCAtgca')
 def wc(seq):
     '''Return reverse Watson-Crick complement of seq'''
     return seq.translate(_wctable)[::-1]
@@ -356,7 +365,12 @@ def domain_pairwise_concatenated_no_sec_struct(seq,seqs,temperature,concat,conca
 def check(s1, s2, T, orthogonality, pass_tests, idx):
     pass_tests[idx] = (binding(s1,s2,T) <= orthogonality)
 
-_binaryGCTable = str.maketrans('ACTG','0101')
+# maketrans is in string if python2 but in str if python3
+try:
+    _binaryGCTable = str.maketrans('ACTG','0101')
+except:
+    _binaryGCTable = string.maketrans('ACTG','0101')
+
 def domain_concatenated_no4GC(seq,seqs):
     '''prevent {G,C}^4 under concatenation'''
     for altseq in seqs:

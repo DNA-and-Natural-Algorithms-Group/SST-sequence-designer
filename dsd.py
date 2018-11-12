@@ -12,9 +12,14 @@ Shipped with DNA single-stranded tile (SST) sequence designer used in the follow
 
 import numpy as np
 import sst_dsd
-# from lru_cache import lru_cache # this was used when we had a hand-rolled lru_cache, but it's now in Python 3
-from functools import lru_cache 
 import itertools as it
+
+# from lru_cache import lru_cache # this was used when we had a hand-rolled lru_cache, but it's now in Python 3
+try:
+    from functools import lru_cache 
+except:
+    # in case this is python2
+    from lru_cache import lru_cache
 
 PYPY = True
 
