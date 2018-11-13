@@ -1,22 +1,29 @@
 '''Python 3 script to analyse DNA single-stranded tile sequences.'''
 
-import math,string,random,sys,os,time,itertools,pickle,pprint  #os.path,
+
+#import matplotlib.patches as mpatches
+#import multiprocessing
+# string,random,
+
+
+import math,sys,os,time,itertools,pickle,pprint  
 import subprocess as sub
 import numpy as np
 import argparse as argparse
 
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
 from matplotlib.backends.backend_pdf import PdfPages
-import multiprocessing
 from multiprocessing.pool import ThreadPool
 from functools import lru_cache 
 from datetime import datetime
 global_thread_pool = ThreadPool()
 
-MORE_NEGAIVE_ENERGY_IS_MORE_FAVOURABLE=1
-viennaRNA_PARAMETER_SET_DIRECTORY='nupack_viennaRNA/'
-DEFAULT_viennaRNA_PARAMETER_SET= viennaRNA_PARAMETER_SET_DIRECTORY+'dna_mathews1999.par'
+
+MORE_NEGAIVE_ENERGY_IS_MORE_FAVOURABLE = True 
+
+
+viennaRNA_PARAMETER_SET_DIRECTORY = 'nupack_viennaRNA/'
+DEFAULT_viennaRNA_PARAMETER_SET = viennaRNA_PARAMETER_SET_DIRECTORY+'dna_mathews1999.par'
 
 
 #############################################################################
@@ -98,6 +105,8 @@ python analyse_seqs.py input_file.idt
           help="Do not run the (expensive) tile pair test, nor the domain pair test.", default="")
   parser.add_argument('-nm', '--no-mfe-analysis', required=False, action="store_true",  # action="store", dest="query",
           help="Do not run (expensive) mfe analysis.", default="")
+  parser.add_argument('-p', '--pickle', required=False, action="store_true",  # action="store", dest="query",
+          help="Use python pickle lbrary to save processed data. Useful when doing time-consuming calculations and want the data for further processing.", default="")
 
   parser.add_argument('-nst', '--non-standard-tiles', required=False, action="store_true",  # action="store", dest="query",
           help="Tiles that do not have exactly 4 domains.", default="")
@@ -124,23 +133,26 @@ def wc(seq):
     return seq.translate(_wctable)[::-1]
 
 
-def run_analysis(f,directory,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,lattice_binding_analysis=1,run_mfe=1,non_standard_tiles=0):
+def run_analysis(f,directory,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,
+                lattice_binding_analysis=1,run_mfe=1,non_standard_tiles=0,pickle_data=0):
   
   domains, domains_with_biotin = read_domains_from_idt_order(f,non_standard_tiles)
   names, seqs, seqs_bt, seq_ws, seq_ws_bt = read_strand_data_from_idt_order(f)
 
-  if not tile_pair_check: num_tile_and_domain_pairs = -1  # -1 menas do not do the tile pair, nor domain pair, check
-  else: num_tile_and_domain_pairs = 0 # 0 means do the tile pair, nor domain pair, check
+  if not tile_pair_check: num_tile_and_domain_pairs = -1  # -1 means do not do the tile pair, nor domain pair, check
+  else: num_tile_and_domain_pairs = 0 # 0 means do the tile pair, and domain pair, check (for fast debugging/testing: num_tile_and_domain_pairs>1 means only check the first num_tile_and_domain_pairs pairs)
   
-  #num_tile_and_domain_pairs = 1000 # useful for debugging:  num_tile_and_domain_pairs > 0 means to do the first num_tile_and_domain_pairs tile/domain pairs 
-
   # strand level analysis
   if strand_analysis:
-    run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,num_tile_pairs=num_tile_and_domain_pairs, run_mfe=mfe_analysis, directory=directory)
+    run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,
+              num_tile_pairs=num_tile_and_domain_pairs, run_mfe=mfe_analysis,
+              directory=directory,pickle_data=pickle_data)
 
   if domain_analysis:
     # domain level analysis
-    analyse_domains(names,seqs,seqs_bt,domains,domains_with_biotin,seq_ws,seq_ws_bt,temp_in_C,num_domain_pairs=num_tile_and_domain_pairs,directory=directory,non_standard_tiles=non_standard_tiles) # num_tile_pairs  ,num_domain_pairs=num_tile_pairs
+    analyse_domains(names,seqs,seqs_bt,domains,domains_with_biotin,
+              seq_ws,seq_ws_bt,temp_in_C,num_domain_pairs=num_tile_and_domain_pairs,
+              directory=directory,non_standard_tiles=non_standard_tiles,pickle_data=pickle_data) # num_tile_pairs  ,num_domain_pairs=num_tile_pairs
 
 
   if lattice_binding_analysis and not non_standard_tiles:
@@ -151,26 +163,27 @@ def run_analysis(f,directory,temp_in_C,domain_analysis=1,strand_analysis=1,tile_
                    title_info='',plot_dir=directory)
 
 
-  #convert_scatter_plots_to_jpg(f, directory) # added this line without checking it for errors
-  print('Done with: run_analysis()')
-  #print('Note that num_domain_pairs was tmp set ot 1000. TODO: Reset to False.')
+  #convert_scatter_plots_to_jpg(f, directory) 
+  #print('Done with: run_analysis()')
 
 
 # analyze sequences at the 'strand' level of abstraction
-def run_strand_analysis(seqs, seqs_bt, domains, domains_with_biotin, temp_in_C, num_tile_pairs=False, run_mfe=False, directory='plots/'):  
+def run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,
+  num_tile_pairs=False,run_mfe=False,directory='plots/',pickle_data=0):  
     '''Analyse `strand' energetics: secondary structure, and strand pair interactions'''
     print('running analysis on strands')
-    pickle_directory = directory+'pickle/'
     description = '' # f[1]
     
     if not os.path.exists(directory):
         print(directory)
         os.makedirs(directory)
-    if not os.path.exists(pickle_directory):
+
+    pickle_directory = directory+'pickle/'
+    if pickle_data:
+      if not os.path.exists(pickle_directory):
         os.makedirs(pickle_directory)
     
-    print('  run_strand_analysis(): plots will be placed in: '+directory+', pickled datastructures will be placed in:  ' + pickle_directory)   
-    #print 'Analysing sequences from file:\n' + filename + '\n'
+    print('  run_strand_analysis(): plots will be placed in: '+directory+  pickle_data*(', pickled datastructures will be placed in:  ' + pickle_directory))  
 
     print(str(len(seqs_bt))+' sequences (where we leave in biotin markers), ' + str(len(seqs))+' sequences (where we do not leave in biotin markers)')
     print(str(len([s for s in seqs_bt if '/iBiodT/' in  s])) +' sequences with biotin markers')
@@ -191,7 +204,9 @@ def run_strand_analysis(seqs, seqs_bt, domains, domains_with_biotin, temp_in_C, 
     sec_struct_energies = [pfunc(s, temp_in_C) for s in seqs] 
     sys.stdout.write(str(len(sec_struct_energies))+' tiles\n'); sys.stdout.flush()
     histogram([sec_struct_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='internal tile secondary structure (via Nupack pfunc)',plot_dir=directory)
-    pickle.dump(sec_struct_energies, open(pickle_directory+"sec_struct_energies.p", "wb" ) )
+    
+    if pickle_data:
+      pickle.dump(sec_struct_energies, open(pickle_directory+"sec_struct_energies.p", "wb" ) )
     
     # tile pair analysis
     if num_tile_pairs != -1:
@@ -218,7 +233,8 @@ def run_strand_analysis(seqs, seqs_bt, domains, domains_with_biotin, temp_in_C, 
       scatter_plot_energies(binding_pair_energies, mfe_pair_energies, xaxis='nupack pair binding', yaxis='nupack pair mfe', title_info='',plot_dir=directory)
       descriptors = ['RNAduplex (1999)','RNAduplex (2004)','NUPACK binding','NUPACK mfe']
       histogram([RNAduplex_pair_energies,RNAduplex_pair_energies_2004,binding_pair_energies,mfe_pair_energies],labels=descriptors,xaxis='energy (kcal/mol)',yaxis='',title='tile pair energies',plot_dir=directory)
-      pickle.dump(mfe_pair_energies, open( pickle_directory+"mfe_pair_energies.p", "wb" ) )
+      if pickle_data:
+        pickle.dump(mfe_pair_energies, open( pickle_directory+"mfe_pair_energies.p", "wb" ) )
     elif not run_mfe and num_tile_pairs != -1:
       descriptors = ['RNAduplex (1999)','RNAduplex (2004)','NUPACK binding']
       histogram([RNAduplex_pair_energies,RNAduplex_pair_energies_2004,binding_pair_energies],labels=descriptors,xaxis='energy (kcal/mol)',yaxis='',title='tile pair energies',plot_dir=directory)
@@ -298,8 +314,8 @@ def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_dou
     if not algo_format_tile_name(n): 
       is_algo_tile_set = False
   if not(is_algo_tile_set): 
-    print("The input tile set seems to not be an algorithmic tile set since it's tile names are not of the correct format. ") 
-    print("Skipping execution of analyse_row_conflicts().")
+    print("The input tile set seems to not be an algorithmic tile set since it's tile names \
+      are not of the correct format, hence I'm skipping execution of analyse_row_conflicts().")
     return 0
 
   if not os.path.exists(directory): os.makedirs(directory)
@@ -589,11 +605,6 @@ def analyse_algo_conflicts(f,directory,temp_in_C=53,lattice_spacer='TTTTT',threa
 
   names, _, _, seqs, seqs_bt  = read_strand_data_from_idt_order(f)
   domains, domains_incl_biotin_labels = read_domains_from_idt_order(f)
-
-  # in older version of code, this was :
-  # names, _, _ , seqs, seqs_bt = read_tiles_from_idt_order(f)
-  # seqs have spaces between domains
-  # domains, domains_incl_biotin_labels = read_domains_from_idt_order(f)            
   
   if not os.path.exists(directory): os.makedirs(directory)
   print('  the next few plots will be placed in: ' + directory)
@@ -616,8 +627,8 @@ the function analyse_algo_conflicts(), from file: ' + f +\
   for tile1_name, tile1_seq in names_seqs:
     tile1_domains = tile1_seq.split(' ')
     if threaded:    
+      if num_tiles_processed%10==0 and num_tiles_processed>0: sys.stdout.write(str(num_tiles_processed))
       sys.stdout.write('.')
-      if num_tiles_processed%10==0: sys.stdout.write(str(num_tiles_processed))
       sys.stdout.flush()
       num_tiles_processed += 1
 
@@ -696,6 +707,7 @@ the function analyse_algo_conflicts(), from file: ' + f +\
         f.write(weak_correct_bindings)
         f.write('\\end{verbatim}\\end{footnotesize}\n')
   
+
   histogram([correct_growth_energies,single_mismatch_below_energies,single_mismatch_above_energies],
             labels=['correct growth ({} energies)'.format(len(correct_growth_energies)),
                     'one mismatch below ({} energies)'.format(len(single_mismatch_below_energies)),
@@ -705,8 +717,8 @@ the function analyse_algo_conflicts(), from file: ' + f +\
             title='correct and algorithmic error attachments to a valid lattice'+' (lattice spacer is empty)'*(not(bool(lattice_spacer))), #; for {} tiles)'.format(len(names_seqs)),
             filename='algorithmic error (first), dG before and after, mismatches above and below, lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer))), #; for {} tiles)'.format(len(names_seqs)),            
             normed=0,label_size=12,legend_font_size=9,plot_dir=directory,
-            xmin=min(-17.1,min(correct_growth_energies+single_mismatch_below_energies+single_mismatch_above_energies)),xmax=0,
-            ymax=282) # was xmin=4,xmax=18
+            xmin=min(-17.1,min(correct_growth_energies+single_mismatch_below_energies+single_mismatch_above_energies)),
+            xmax=0) # was ymax=282
   histogram([correct_growth_energies,single_mismatch_below_energies+single_mismatch_above_energies],
             labels=['{} correct attachments'.format(len(correct_growth_energies)),
                     '{} algorithmic errors'.format(len(single_mismatch_below_energies+single_mismatch_above_energies))
@@ -715,8 +727,8 @@ the function analyse_algo_conflicts(), from file: ' + f +\
             title=   'correct and algorithmic error attachments to a valid lattice'+' (lattice spacer is empty)'*(not(bool(lattice_spacer))), #; for {} tiles)'.format(len(names_seqs)),
             filename='algorithmic error (first), dG before and after, lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer)))+')', #; for {} tiles)'.format(len(names_seqs)),
             normed=0,label_size=12,legend_font_size=9,plot_dir=directory,
-            xmin=min(-17.1,min(correct_growth_energies+single_mismatch_below_energies+single_mismatch_above_energies)),xmax=0,
-            ymax=282) # was xmin=4,xmax=18
+            xmin=min(-17.1,min(correct_growth_energies+single_mismatch_below_energies+single_mismatch_above_energies)),
+            xmax=0) # was ymax=282
 
   return correct_growth_energies,single_mismatch_below_energies,single_mismatch_above_energies
 
@@ -751,7 +763,9 @@ def print_lattice_mismatch_above(energy, top_output, top_name, tile_seq, tile_na
     #print s; sys.stdout.flush()
     return s
 
-def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,seq_ws,seq_ws_bt,temp_in_C=53.0,num_domain_pairs=False,directory='plots_tmp/',non_standard_tiles=0):
+def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,
+                    seq_ws,seq_ws_bt,temp_in_C=53.0,num_domain_pairs=False,
+                    directory='plots_tmp/',non_standard_tiles=0,pickle_data=0):
   '''Analyse domain sequences'''
   
   print('\ndomain analysis: plots will be placed in: ' + directory)
@@ -934,13 +948,25 @@ def histogram(data, labels='', xaxis='', yaxis='', title='', filename='', plot_d
 
   for i,d in enumerate(data):
     if d != []:
+      # ax = (y,x,_) is a 
       ax = plt.hist(d, bins, normed=normed, 
                   range=[2.0,18.0],
                   histtype='stepfilled', 
                   facecolor=next(colours), alpha=0.5, edgecolor='black', 
                   label=labels[i] + show_mean_min_max*((labels[i]!='')*', '+'mean='+str('{0:.2f}'.format(sum(d)/float(len(d))))+', min='+str('{0:.2f}'.format(min(d)))+', max='+str('{0:.2f}'.format(max(d)))))
+  
   if xmin!=0 or xmax!=0: plt.xlim(xmin, xmax)
-  if ymin!=0 or ymax!=0: plt.ylim(ymin, ymax)
+  if ymin!=0 or ymax!=0: 
+    plt.ylim(ymin, ymax)
+  else:
+    plt.ylim(ax[0].min(),  ax[0].max()*1.4)
+
+  print(ax[0].max())
+  print(ax[0].min())
+  print(ax[1].max())
+  print(ax[1].min())
+
+
   plt.legend(loc=legend_location, fontsize=legend_font_size) #'smaller'
   plt.title(title, fontsize = label_size) #'smaller'
   plt.ylabel(yaxis,fontsize = label_size)
@@ -1429,13 +1455,14 @@ def sequencer_designer_file_format_to_IDT_file_format(input_filename):
       out_file.write(new_line+"\n") 
 
   if "/iBiodT/" in ''.join(line for line in open(input_filename, "r")):
-    print("Some strands have biotins (/iBiodT/), those were placed at 100nm scale (all other strands at 25nm scale)")
-  print("\nGenerated IDT format file with filename: "+output_filename+"\n")
+    print("Some strands have biotins (/iBiodT/), those were placed at 100nm scale in the output IDT-format file (all other strands at 25nm scale)")
+  print("\nGenerated IDT-format file with filename: "+output_filename+"\n")
   return output_filename
 
 
 
-def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,lattice_binding_analysis=1,mfe_analysis=1,non_standard_tiles=0):
+def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,
+  lattice_binding_analysis=1,mfe_analysis=1,non_standard_tiles=0,pickle_data=0):
   # files is a list of paths to files with sequences in the appropriate format
   for f in files: 
     # Here, the following two lines are executed only for the purpose of syntax checking the input files.
@@ -1447,7 +1474,6 @@ def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,l
     elif input_format == "unknown format":
       exit("Error: Unknown file format")
 
-
     domains, domains_with_biotin = read_domains_from_idt_order(f,non_standard_tiles)
     names, seqs, seqs_bt, seq_ws, seq_ws_bt = read_strand_data_from_idt_order(f)
     
@@ -1458,7 +1484,10 @@ def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,l
     if not os.path.exists(_analysis_directory):
       os.makedirs(_analysis_directory)
 
-    run_analysis(f,directory=_analysis_directory,temp_in_C=temp_in_C,domain_analysis=domain_analysis,strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,lattice_binding_analysis=lattice_binding_analysis,run_mfe=mfe_analysis,non_standard_tiles=non_standard_tiles)
+    run_analysis(f,directory=_analysis_directory,temp_in_C=temp_in_C,domain_analysis=domain_analysis,
+      strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,
+      lattice_binding_analysis=lattice_binding_analysis,run_mfe=mfe_analysis,
+      non_standard_tiles=non_standard_tiles,pickle_data=pickle_data)
 
 
 if __name__ == "__main__":
@@ -1473,7 +1502,11 @@ if __name__ == "__main__":
   non_standard_tiles = type(args.non_standard_tiles)==bool and args.non_standard_tiles 
   if args.temperature: temp_in_C = args.temperature
   else: temp_in_C = _default_temp_in_C
+  pickle_data = type(args.pickle)==bool and args.pickle
 
-  main(files=files,temp_in_C=temp_in_C,domain_analysis=domain_analysis,strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,lattice_binding_analysis=lattice_binding_analysis,mfe_analysis=mfe_analysis,non_standard_tiles=non_standard_tiles)
+  main(files=files,temp_in_C=temp_in_C,domain_analysis=domain_analysis,
+      strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,
+      lattice_binding_analysis=lattice_binding_analysis,mfe_analysis=mfe_analysis,
+      non_standard_tiles=non_standard_tiles,pickle_data=pickle_data)
 
 
