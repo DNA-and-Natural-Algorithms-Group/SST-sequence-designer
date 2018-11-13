@@ -107,6 +107,8 @@ python analyse_seqs.py input_file.idt
           help="Do not run (expensive) mfe analysis.", default="")
   parser.add_argument('-p', '--pickle', required=False, action="store_true",  # action="store", dest="query",
           help="Use python pickle lbrary to save processed data. Useful when doing time-consuming calculations and want the data for further processing.", default="")
+  parser.add_argument('-b', '--bins', required=False, type=int,  # action="store", dest="query",
+          help="Number of bins in histogram plots.")
 
   parser.add_argument('-nst', '--non-standard-tiles', required=False, action="store_true",  # action="store", dest="query",
           help="Tiles that do not have exactly 4 domains.", default="")
@@ -134,7 +136,7 @@ def wc(seq):
 
 
 def run_analysis(f,directory,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,
-                lattice_binding_analysis=1,run_mfe=1,non_standard_tiles=0,pickle_data=0):
+                lattice_binding_analysis=1,run_mfe=1,non_standard_tiles=0,pickle_data=0,num_bins=-1):
   
   domains, domains_with_biotin = read_domains_from_idt_order(f,non_standard_tiles)
   names, seqs, seqs_bt, seq_ws, seq_ws_bt = read_strand_data_from_idt_order(f)
@@ -146,17 +148,17 @@ def run_analysis(f,directory,temp_in_C,domain_analysis=1,strand_analysis=1,tile_
   if strand_analysis:
     run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,
               num_tile_pairs=num_tile_and_domain_pairs, run_mfe=mfe_analysis,
-              directory=directory,pickle_data=pickle_data)
+              directory=directory,pickle_data=pickle_data,num_bins=num_bins)
 
   if domain_analysis:
     # domain level analysis
     analyse_domains(names,seqs,seqs_bt,domains,domains_with_biotin,
               seq_ws,seq_ws_bt,temp_in_C,num_domain_pairs=num_tile_and_domain_pairs,
-              directory=directory,non_standard_tiles=non_standard_tiles,pickle_data=pickle_data) # num_tile_pairs  ,num_domain_pairs=num_tile_pairs
+              directory=directory,non_standard_tiles=non_standard_tiles,pickle_data=pickle_data,num_bins=num_bins) # num_tile_pairs  ,num_domain_pairs=num_tile_pairs
 
 
   if lattice_binding_analysis and not non_standard_tiles:
-    print('Starting lattice binding analysis')
+    print('\nStarting lattice binding analysis')
     list_of_pairs_of_lists,descriptors = run_lattice_binding_analysis(f,directory,temp_in_C)  
     plot_energies2(list_of_pairs_of_lists, labels=descriptors,
                    xaxis='dG of lattice+tile-lattice-tile',yaxis='binding(tile,lattice)', 
@@ -169,7 +171,7 @@ def run_analysis(f,directory,temp_in_C,domain_analysis=1,strand_analysis=1,tile_
 
 # analyze sequences at the 'strand' level of abstraction
 def run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,
-  num_tile_pairs=False,run_mfe=False,directory='plots/',pickle_data=0):  
+  num_tile_pairs=False,run_mfe=False,directory='plots/',pickle_data=0,num_bins=-1):  
     '''Analyse `strand' energetics: secondary structure, and strand pair interactions'''
     print('running analysis on strands')
     description = '' # f[1]
@@ -203,7 +205,7 @@ def run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,
     sys.stdout.write('analysing tile (strand) secondary structure: '); sys.stdout.flush()
     sec_struct_energies = [pfunc(s, temp_in_C) for s in seqs] 
     sys.stdout.write(str(len(sec_struct_energies))+' tiles\n'); sys.stdout.flush()
-    histogram([sec_struct_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='internal tile secondary structure (via Nupack pfunc)',plot_dir=directory)
+    histogram([sec_struct_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='internal tile secondary structure (via Nupack pfunc)',plot_dir=directory,num_bins=num_bins)
     
     if pickle_data:
       pickle.dump(sec_struct_energies, open(pickle_directory+"sec_struct_energies.p", "wb" ) )
@@ -217,27 +219,27 @@ def run_strand_analysis(seqs,seqs_bt,domains,domains_with_biotin,temp_in_C,
     
       RNAduplex_pair_energies = tile_pair_RNAduplex_energies(seq_pairs,temp_in_C)
       RNAduplex_pair_energies_2004 = tile_pair_RNAduplex_energies(seq_pairs,temp_in_C,NA_parameter_set='dna_mathews2004.par')
-      histogram([RNAduplex_pair_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - RNAduplex (1999)',plot_dir=directory)
-      histogram([RNAduplex_pair_energies_2004],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - RNAduplex (2004)',plot_dir=directory)
+      histogram([RNAduplex_pair_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - RNAduplex (1999)',plot_dir=directory,num_bins=num_bins)
+      histogram([RNAduplex_pair_energies_2004],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - RNAduplex (2004)',plot_dir=directory,num_bins=num_bins)
     
       binding_pair_energies = tile_pair_NUPACK_binding_energies(seq_pairs,temp_in_C)
-      histogram([binding_pair_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - nupack binding',plot_dir=directory)
+      histogram([binding_pair_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - nupack binding',plot_dir=directory,num_bins=num_bins)
       scatter_plot_energies(binding_pair_energies, RNAduplex_pair_energies, xaxis='nupack pair binding', yaxis='RNAduplex pair (1999)', title_info='',plot_dir=directory) #,xthreshold=9.3,ythreshold=9.3
       scatter_plot_energies(binding_pair_energies, RNAduplex_pair_energies_2004, xaxis='nupack pair binding', yaxis='RNAduplex pair (2004)', title_info='',plot_dir=directory) #,xthreshold=9.3,ythreshold=9.3
       scatter_plot_energies(RNAduplex_pair_energies, RNAduplex_pair_energies_2004, xaxis='RNAduplex pair (1999)', yaxis='RNAduplex pair (2004)', title_info='',plot_dir=directory)
         
     if run_mfe and num_tile_pairs != -1:
       mfe_pair_energies = tile_pair_NUPACK_mfe_energies(seq_pairs,temp_in_C)
-      histogram([mfe_pair_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - nupack mfe',plot_dir=directory)
+      histogram([mfe_pair_energies],labels=[description],xaxis='energy (kcal/mol)',yaxis='',title='tile pairs - nupack mfe',plot_dir=directory,num_bins=num_bins)
       scatter_plot_energies(mfe_pair_energies, RNAduplex_pair_energies, xaxis='nupack pair mfe', yaxis='RNAduplex pair', title_info='',plot_dir=directory)
       scatter_plot_energies(binding_pair_energies, mfe_pair_energies, xaxis='nupack pair binding', yaxis='nupack pair mfe', title_info='',plot_dir=directory)
       descriptors = ['RNAduplex (1999)','RNAduplex (2004)','NUPACK binding','NUPACK mfe']
-      histogram([RNAduplex_pair_energies,RNAduplex_pair_energies_2004,binding_pair_energies,mfe_pair_energies],labels=descriptors,xaxis='energy (kcal/mol)',yaxis='',title='tile pair energies',plot_dir=directory)
+      histogram([RNAduplex_pair_energies,RNAduplex_pair_energies_2004,binding_pair_energies,mfe_pair_energies],labels=descriptors,xaxis='energy (kcal/mol)',yaxis='',title='tile pair energies',plot_dir=directory,num_bins=num_bins)
       if pickle_data:
         pickle.dump(mfe_pair_energies, open( pickle_directory+"mfe_pair_energies.p", "wb" ) )
     elif not run_mfe and num_tile_pairs != -1:
       descriptors = ['RNAduplex (1999)','RNAduplex (2004)','NUPACK binding']
-      histogram([RNAduplex_pair_energies,RNAduplex_pair_energies_2004,binding_pair_energies],labels=descriptors,xaxis='energy (kcal/mol)',yaxis='',title='tile pair energies',plot_dir=directory)
+      histogram([RNAduplex_pair_energies,RNAduplex_pair_energies_2004,binding_pair_energies],labels=descriptors,xaxis='energy (kcal/mol)',yaxis='',title='tile pair energies',plot_dir=directory,num_bins=num_bins)
         
     #descriptors = ['binding v RNAduplex (1999)','binding v RNAduplex (2004)','mfe v RNAduplex (1999)','mfe v RNAduplex (2004)']
     
@@ -268,40 +270,40 @@ def lattice_binding_spacer(strand,lattice_end_top,lattice_spacer,lattice_end_bot
 _bad_single_mismatch_threshold = 10.0
 
 
-def run_lattice_binding_analysis(f,directory,temp_in_C, lattice_spacer='TTTTT'):    
+def run_lattice_binding_analysis(f,directory,temp_in_C,lattice_spacer='TTTTT',num_bins=-1):    
   # check for "first" algo conflicts (single mismatches that are the first error in a proofreading block)
   # first with empty lattice_spacer
-  _,_,_ = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer='', threaded=True) 
+  _,_,_ = analyse_algo_conflicts(f,directory,temp_in_C=temp_in_C,lattice_spacer='',threaded=True,num_bins=num_bins) 
 
   # then with lattice_spacer='TTTTT'
-  _,_,_ = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=True) 
-  _,_,_ = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=False) 
-  correct_dG_algo,mismatch_below_algo,mismatch_above_algo = analyse_algo_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=True) 
+  _,_,_ = analyse_algo_conflicts(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,threaded=True,num_bins=num_bins) 
+  _,_,_ = analyse_algo_conflicts(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,threaded=False,num_bins=num_bins) 
+  correct_dG_algo,mismatch_below_algo,mismatch_above_algo = analyse_algo_conflicts(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,threaded=True) 
   
   # check for generalised algo conflicts (single mismatches)
-  analyse_row_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, normed=True, check_double_mismatches=_check_double_mismatches)
-  analyse_row_conflicts(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, normed=False, check_double_mismatches=_check_double_mismatches)
+  analyse_row_conflicts(f,directory, temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,normed=True,check_double_mismatches=_check_double_mismatches,num_bins=num_bins)
+  analyse_row_conflicts(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,normed=False,check_double_mismatches=_check_double_mismatches,num_bins=num_bins)
   
-  _,_,_ = lattice_binding_energies_detailed(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=True)    
-  _,_,_ = lattice_binding_energies_detailed(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=False)    
-  correct_dG,mismatch_below_dG,mismatch_above_dG = lattice_binding_energies_detailed(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer, threaded=True)    
+  _,_,_ = lattice_binding_energies_detailed(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,threaded=True,num_bins=num_bins)
+  _,_,_ = lattice_binding_energies_detailed(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,threaded=False,num_bins=num_bins)
+  correct_dG,mismatch_below_dG,mismatch_above_dG = lattice_binding_energies_detailed(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,threaded=True,num_bins=num_bins)
   
-  correct_binding,mismatch_below_binding,mismatch_above_binding = lattice_binding_energies_simplified(f,directory, temp_in_C=temp_in_C, lattice_spacer=lattice_spacer)           
+  correct_binding,mismatch_below_binding,mismatch_above_binding = lattice_binding_energies_simplified(f,directory,temp_in_C=temp_in_C,lattice_spacer=lattice_spacer,num_bins=num_bins)
 
-  list_of_pairs_of_lists = [[correct_dG, correct_binding],
-                            [mismatch_below_dG, mismatch_below_binding],
-                            [mismatch_above_dG, mismatch_above_binding]]
+  list_of_pairs_of_lists = [[correct_dG,correct_binding],
+                            [mismatch_below_dG,mismatch_below_binding],
+                            [mismatch_above_dG,mismatch_above_binding]]
   descriptors = ['correct binding',
                   '1 mismatch (below)',
                   '1 mismatch (above)']
-  return list_of_pairs_of_lists, descriptors
+  return list_of_pairs_of_lists,descriptors
 
 
 def algo_format_tile_name(n):
   return ( len(n.split(";"))==3  and  n.split(";")[2] in ['ne','nw','se','sw'])
 
 
-def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_double_mismatches=False,normed=True,threaded=True):
+def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_double_mismatches=False,normed=True,threaded=True,num_bins=-1):
   '''Nupack binding() energy of row-conflicting tile (single-mismatch that can arise 
   during correct and incorrect growth) ... TODO: explain row-conflict'''
   
@@ -314,12 +316,12 @@ def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_dou
     if not algo_format_tile_name(n): 
       is_algo_tile_set = False
   if not(is_algo_tile_set): 
-    print("The input tile set seems to not be an algorithmic tile set since it's tile names \
-      are not of the correct format, hence I'm skipping execution of analyse_row_conflicts().")
+    print("The input tile set seems to not be an algorithmic tile set (based on it's tile names), \
+hence I'm skipping execution of analyse_row_conflicts().")
     return 0
 
   if not os.path.exists(directory): os.makedirs(directory)
-  print('analyse_row_conflicts(), lattice binding analysis from file:\n'+f+' plots will be placed in: ' + directory)
+  print(' analyse_row_conflicts(), lattice binding analysis from file:  '+f+'\n plots will be placed in: ' + directory)
 
   names_seqs = list(zip(names,seqs))
 
@@ -340,8 +342,7 @@ def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_dou
         helix_tiles[helix].append( (tile_name, tile_seq) )
 
   for tile1_name, tile1_seq in names_seqs: 
-    sys.stdout.write('.')
-    if num_tiles_processed%10==0: sys.stdout.write(str(num_tiles_processed))
+    if num_tiles_processed%10==0 and num_tiles_processed>0: sys.stdout.write(str(num_tiles_processed))
     num_tiles_processed += 1
     sys.stdout.write('.'); sys.stdout.flush()
   
@@ -419,13 +420,14 @@ def analyse_row_conflicts(f,directory,temp_in_C,lattice_spacer='TTTTT',check_dou
             xaxis='energy (kcal/mol)',yaxis='',
             title='growth on right (dG before-after binding, 1'+ ' and 2'*check_double_mismatches +' mismatch'+'es'*check_double_mismatches+', lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer)))+', not normalised'*(not normed)+')', #; for {} tiles)'.format(len(names_seqs)),
             label_size=12,legend_font_size=9,
-            plot_dir=directory,normed=normed,xmin=-18,xmax=-4) # ,xmin=4,xmax=18
+            plot_dir=directory,normed=normed,xmin=-18,num_bins=num_bins) # ,xmin=4,xmax=18
   return correct_growth_energies,single_mismatch_below_energies,single_mismatch_above_energies,double_mismatch_energies
 
 
-def lattice_binding_energies_detailed(f,directory,temp_in_C=53,lattice_spacer='TTTTT',threaded=True):
+def lattice_binding_energies_detailed(f,directory,temp_in_C=53,lattice_spacer='TTTTT',threaded=True,num_bins=-1):
   '''Nupack binding() energy of tile binding of right (non-seeded end) of 
   nanotube with zero or one mistmatches'''
+
   names, _, _, seqs, seqs_bt  = read_strand_data_from_idt_order(f)
   domains, domains_incl_biotin_labels = read_domains_from_idt_order(f)
   if not os.path.exists(directory): os.makedirs(directory)
@@ -440,10 +442,9 @@ def lattice_binding_energies_detailed(f,directory,temp_in_C=53,lattice_spacer='T
 
   for tile1_name, tile1_seq in names_seqs:   
     tile1_domains = tile1_seq.split(' ')
-    if threaded:            
-      sys.stdout.write('.')
-      if num_tiles_processed%10==0: sys.stdout.write(str(num_tiles_processed))
-      sys.stdout.flush()
+    if threaded:
+      if num_tiles_processed%10==0 and num_tiles_processed>0: sys.stdout.write(str(num_tiles_processed))
+      sys.stdout.write('.'); sys.stdout.flush()
       num_tiles_processed += 1
 
       correct_growth_energies.append(lattice_binding_spacer(tile1_seq,
@@ -522,12 +523,14 @@ def lattice_binding_energies_detailed(f,directory,temp_in_C=53,lattice_spacer='T
                    ],
             xaxis='energy (-kcal/mol)',yaxis='',
             label_size=12,legend_font_size=9,
-            title='growth on right (detailed binding, incorrect and correct lattices, lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer)))+')', #; for {} tiles)'.format(len(names_seqs)),
-            plot_dir=directory,xmin=-18,xmax=-4) # xmin=4,xmax=18
+            title='growth on right (detailed binding, incorrect and correct lattices, lattice spacer '+lattice_spacer*(bool(lattice_spacer))+'is empty string'*(not(bool(lattice_spacer)))+')', #; for {} tiles)'.format(len(names_seqs)),
+            plot_dir=directory,xmin=-18,num_bins=num_bins) # xmin=4,xmax=18
+  
+  sys.stdout.write('\n')
   return correct_growth_energies,single_mismatch_below_energies,single_mismatch_above_energies
 
 
-def lattice_binding_energies_simplified(f,directory, temp_in_C=53, lattice_spacer='TTTTT'):
+def lattice_binding_energies_simplified(f,directory, temp_in_C=53, lattice_spacer='TTTTT',num_bins=-1):
   '''Nupack binding() energy of tile binding of right of nanotube with no mistmatches
   or one mismatch'''    
   names, _, _, seqs, seqs_bt  = read_strand_data_from_idt_order(f)
@@ -545,7 +548,7 @@ def lattice_binding_energies_simplified(f,directory, temp_in_C=53, lattice_space
   for tile1_name, tile1_seq in names_seqs:
     tile1_domains = tile1_seq.split(' ')
     sys.stdout.write('.')
-    if num_tiles_processed%10==0: sys.stdout.write(str(num_tiles_processed))
+    if num_tiles_processed%10==0 and num_tiles_processed>0: sys.stdout.write(str(num_tiles_processed))
     #if num_tiles_processed%10==0: sys.stdout.write('.')
     sys.stdout.flush()
     num_tiles_processed += 1
@@ -577,7 +580,7 @@ def lattice_binding_energies_simplified(f,directory, temp_in_C=53, lattice_space
             xaxis='energy (-kcal/mol)',yaxis='',
             title='growth on right (simplified binding(), lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer)))+')', 
             label_size=12,legend_font_size=9,
-            plot_dir=directory,xmin=-18,xmax=-4) # ,xmin=4,xmax=18
+            plot_dir=directory,xmin=-18,num_bins=num_bins) # ,xmin=4,xmax=18
 
   return correct_growth_energies,single_mismatch_below_energies,single_mismatch_above_energies
  
@@ -599,7 +602,7 @@ def tile_num(name):
   return int(name[1:2])
 
 
-def analyse_algo_conflicts(f,directory,temp_in_C=53,lattice_spacer='TTTTT',threaded=True):
+def analyse_algo_conflicts(f,directory,temp_in_C=53,lattice_spacer='TTTTT',threaded=True,num_bins=-1):
   '''binding() energy of algorithmic conflicting tile (single-mismatches that can arise 
   as the first error from a locally-correct lattice)'''
 
@@ -718,7 +721,8 @@ the function analyse_algo_conflicts(), from file: ' + f +\
             filename='algorithmic error (first), dG before and after, mismatches above and below, lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer))), #; for {} tiles)'.format(len(names_seqs)),            
             normed=0,label_size=12,legend_font_size=9,plot_dir=directory,
             xmin=min(-17.1,min(correct_growth_energies+single_mismatch_below_energies+single_mismatch_above_energies)),
-            xmax=0) # was ymax=282
+            xmax=0,
+            num_bins=num_bins) # was ymax=282
   histogram([correct_growth_energies,single_mismatch_below_energies+single_mismatch_above_energies],
             labels=['{} correct attachments'.format(len(correct_growth_energies)),
                     '{} algorithmic errors'.format(len(single_mismatch_below_energies+single_mismatch_above_energies))
@@ -728,8 +732,10 @@ the function analyse_algo_conflicts(), from file: ' + f +\
             filename='algorithmic error (first), dG before and after, lattice spacer is '+lattice_spacer*(bool(lattice_spacer))+'empty string'*(not(bool(lattice_spacer)))+')', #; for {} tiles)'.format(len(names_seqs)),
             normed=0,label_size=12,legend_font_size=9,plot_dir=directory,
             xmin=min(-17.1,min(correct_growth_energies+single_mismatch_below_energies+single_mismatch_above_energies)),
-            xmax=0) # was ymax=282
+            xmax=0,
+            num_bins=num_bins) # was ymax=282
 
+  sys.stdout.write('\n')
   return correct_growth_energies,single_mismatch_below_energies,single_mismatch_above_energies
 
 
@@ -765,7 +771,7 @@ def print_lattice_mismatch_above(energy, top_output, top_name, tile_seq, tile_na
 
 def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,
                     seq_ws,seq_ws_bt,temp_in_C=53.0,num_domain_pairs=False,
-                    directory='plots_tmp/',non_standard_tiles=0,pickle_data=0):
+                    directory='plots_tmp/',non_standard_tiles=0,pickle_data=0,num_bins=-1):
   '''Analyse domain sequences'''
   
   print('\ndomain analysis: plots will be placed in: ' + directory)
@@ -777,13 +783,13 @@ def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,
     print(seq_ws)
     seq_ws = [s.split()[0]+' '+s.split()[2]+' '+s.split()[3]+' '+s.split()[5] for s in seq_ws if len(s.split())==6]
     print(seq_ws)
-    #exit()
+
   input_energies = analyse_input_pairs(seq_ws, temp_in_C)
   output_energies = analyse_output_pairs(seq_ws, temp_in_C)   
   lattice_input_energies_correct_binding = analyse_lattice_input_energies_correct_binding(seq_ws, temp_in_C)
   histogram([input_energies,lattice_input_energies_correct_binding,output_energies],
             labels=['input','lattice (correct)','output'],xaxis='energy (kcal/mol)',yaxis='',
-            title='tile input, lattice and output secondrary structure (ss)',plot_dir=directory)
+            title='tile input, lattice and output secondrary structure (ss)',plot_dir=directory,num_bins=num_bins)
   scatter_plot_energies(input_energies, lattice_input_energies_correct_binding, xaxis='input sec struct', yaxis='lattice sec struct (correct binding)', title_info='',plot_dir=directory) #,xthreshold=9.3,ythreshold=9.3
   
   # domain secondary structure
@@ -797,10 +803,13 @@ def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,
   strong_doms_energies = [pfunc(d, temp_in_C) for d in strong_doms] 
   weak_doms_energies = [pfunc(d, temp_in_C) for d in weak_doms] 
   if len(strong_doms_energies)>0 and len(weak_doms_energies):
-    histogram([weak_doms_energies,strong_doms_energies],labels=['domains','domains with biotin'],xaxis='energy (kcal/mol)',yaxis='',title='domain secondary structure energy histogram (via NUPACK pfunc)',plot_dir=directory)
+    histogram([weak_doms_energies,strong_doms_energies],labels=['domains','domains with biotin'],
+              xaxis='energy (kcal/mol)',yaxis='',title='domain secondary structure energy histogram (via NUPACK pfunc)',
+              plot_dir=directory,num_bins=num_bins)
   else:
     #weak_doms_energies.extend(strong_doms_energies)
-    histogram([domain_energies],labels=['domains'],xaxis='energy (kcal/mol)',yaxis='',title='domain secondary structure (pfunc)',plot_dir=directory)
+    histogram([domain_energies],labels=['domains'],xaxis='energy (kcal/mol)',yaxis='',
+      title='domain secondary structure (pfunc)',plot_dir=directory,num_bins=num_bins)
   
   if num_domain_pairs != -1:
     sys.stdout.write('  analysing domain pairs: ');sys.stdout.flush()
@@ -832,7 +841,7 @@ def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,
 
     histogram([RNAduplex_wc_domains_pairs_energies,RNAduplex_non_wc_domains_pairs_energies],
             labels=['wc domains','non-wc domains'],xaxis='energy (kcal/mol)',yaxis='',
-            title='domain pair (RNAduplex)',plot_dir=directory)
+            title='domain pair (RNAduplex)',plot_dir=directory,num_bins=num_bins)
   
     non_wc_binding_pair_energies = tile_pair_NUPACK_binding_energies(non_wc_domains_pairs,temp_in_C)
     scatter_plot_energies(non_wc_binding_pair_energies, RNAduplex_non_wc_domains_pairs_energies, xaxis='nupack domain pair binding', yaxis='RNAduplex domain pair (1999)', title_info='non-wc',plot_dir=directory) #,xthreshold=9.3,ythreshold=9.3
@@ -844,7 +853,7 @@ def analyse_domains(names,seqs,seqs_bt,domains,domains_incl_biotin_labels,
             labels=[str(len(wc_binding_pair_energies))+ ' WC domain pairs',str(len(non_wc_binding_pair_energies))+' non-WC domain pairs'],
             xaxis='energy (kcal/mol)',yaxis='',
             normed=1,label_size=12,legend_font_size=9,
-            title='domain pair (nupack binding())',plot_dir=directory)
+            title='domain pair (nupack binding())',plot_dir=directory,num_bins=num_bins)
 
 
 
@@ -911,6 +920,8 @@ def read_domains_from_idt_order(filename, non_standard_tiles=0):
     return list(set(doms)), list(set(doms_with_biotin))
 
 
+def flatten(l):
+  return [item for sublist in l for item in sublist]
 
 
 #############################################################################
@@ -919,7 +930,7 @@ def read_domains_from_idt_order(filename, non_standard_tiles=0):
 
 def histogram(data, labels='', xaxis='', yaxis='', title='', filename='', plot_dir='', log_scale=False, 
               normed=1, xmin=0, xmax=0, ymin=0, ymax=0, label_size=12, legend_font_size=12, show_mean_min_max=1, 
-              legend_location='upper left'):
+              legend_location='upper left',num_bins=-1):
   '''PLot a histogram. By default data is normalized (area under curve 
   sums to 1 for each dataset (curve colour))'''
   min_data = 10000; max_data = -10000
@@ -939,12 +950,10 @@ def histogram(data, labels='', xaxis='', yaxis='', title='', filename='', plot_d
       min_data = min(min_data,min(d)) 
       max_data = max(max_data,max(d)) 
 
-  # binning      
-  num_bins = 50
+  if num_bins==-1: num_bins = min(50, math.ceil(math.sqrt(len(flatten(data))) +1) )
+
   step_size = (max_data-min_data)/num_bins
   bins = [min_data+(i*step_size) for i in range(num_bins)  ]
-  # or use a fixed number of bins for each separate data list
-  # bins = num_bins
 
   for i,d in enumerate(data):
     if d != []:
@@ -959,13 +968,7 @@ def histogram(data, labels='', xaxis='', yaxis='', title='', filename='', plot_d
   if ymin!=0 or ymax!=0: 
     plt.ylim(ymin, ymax)
   else:
-    plt.ylim(ax[0].min(),  ax[0].max()*1.4)
-
-  print(ax[0].max())
-  print(ax[0].min())
-  print(ax[1].max())
-  print(ax[1].min())
-
+    plt.ylim(ax[0].min(),  ax[0].max()*1.4  )
 
   plt.legend(loc=legend_location, fontsize=legend_font_size) #'smaller'
   plt.title(title, fontsize = label_size) #'smaller'
@@ -1462,7 +1465,7 @@ def sequencer_designer_file_format_to_IDT_file_format(input_filename):
 
 
 def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,
-  lattice_binding_analysis=1,mfe_analysis=1,non_standard_tiles=0,pickle_data=0):
+  lattice_binding_analysis=1,mfe_analysis=1,non_standard_tiles=0,pickle_data=0,num_bins=-1):
   # files is a list of paths to files with sequences in the appropriate format
   for f in files: 
     # Here, the following two lines are executed only for the purpose of syntax checking the input files.
@@ -1487,7 +1490,7 @@ def main(files,temp_in_C,domain_analysis=1,strand_analysis=1,tile_pair_check=1,
     run_analysis(f,directory=_analysis_directory,temp_in_C=temp_in_C,domain_analysis=domain_analysis,
       strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,
       lattice_binding_analysis=lattice_binding_analysis,run_mfe=mfe_analysis,
-      non_standard_tiles=non_standard_tiles,pickle_data=pickle_data)
+      non_standard_tiles=non_standard_tiles,pickle_data=pickle_data,num_bins=num_bins)
 
 
 if __name__ == "__main__":
@@ -1503,10 +1506,12 @@ if __name__ == "__main__":
   if args.temperature: temp_in_C = args.temperature
   else: temp_in_C = _default_temp_in_C
   pickle_data = type(args.pickle)==bool and args.pickle
+  if args.bins: num_bins = int(args.bins)
+  else: num_bins=-1
 
   main(files=files,temp_in_C=temp_in_C,domain_analysis=domain_analysis,
       strand_analysis=strand_analysis,tile_pair_check=tile_pair_check,
       lattice_binding_analysis=lattice_binding_analysis,mfe_analysis=mfe_analysis,
-      non_standard_tiles=non_standard_tiles,pickle_data=pickle_data)
+      non_standard_tiles=non_standard_tiles,pickle_data=pickle_data,num_bins=num_bins)
 
 
