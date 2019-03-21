@@ -3,11 +3,12 @@
 
 The code in this directory is shipped with the manuscript:
 "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly".
-Woods, Doty, Myhrvold, Hui, Zhou, Yin and Winfree. Nature, 2019.
+Woods*, Doty*, Myhrvold, Hui, Zhou, Yin and Winfree. (*joint first co-authors)
+Nature 567:366–372, 2019.
 
 This software can be installed on Linux and MacOS machines in several ways. (Installation on Windows is not possible as a piece of software we require, namely NUPACK, is not supported on Windows.)
 
-We strongly recommend following the Nix instructions outlined below in part A as this provides an automated install procedure that essentially creates an isolated environment with the required prerequisites and without otherwise impacting your system. The nix-installed packages can be easily removed a a later time.
+We strongly recommend following the Nix instructions outlined below in part A as this provides an automated install procedure that essentially creates an isolated environment with the required prerequisites and without otherwise impacting your system. The nix-installed packages can be easily removed at a later time.
 
 We also provide alternative do-it-yourself instructions (further below in part B) for those who do not wish to install the Nix package manager, but are happy to alter the global state of their system (however, configuration via B might be trickier than A).
 
@@ -26,7 +27,12 @@ curl https://nixos.org/nix/install | sh
 ``` 
 After the install, follow any instructions given on screen. For more information on Nix, see: <https://nixos.org/nix/>.
 
-2. Create a directory and place the sequence design code there. That directory needs to contain the file default.nix shipped with the sequence design code. You'll need an nternet connection. In that directory run the command:
+2. Create a directory and place the sequence design code there.
+```
+git clone https://github.com/DNA-and-Natural-Algorithms-Group/SST-sequence-designer
+``` 
+
+3. That directory needs to contain the file default.nix shipped with the sequence design code. You'll need an internet connection. In that directory run the command:
 ```
 nix-shell
 ```
@@ -41,10 +47,10 @@ The sequence designer is written in python and relies on the specific point vers
 
 2. Install the python packages for numpy and matplotlib.
 
-3. NUPACK: Install NUPACK version 3.0.6 (shipped as nupack3.0.6.tar.gz). At the time of writing, the source is publicly available by request from the authors here: http://www.nupack.org/downloads . Extract and run GNU make. The pdf file doc/NUPACK-UserGuide-3.0.pdf included has helpful info on nupack. The unix path must be able to find NUPACK executables (e.g. pfunc, mfe), and the environment path variable NUPACKHOME must be set, as described in the NUPACK installation instructions NUPACK-UserGuide-3.0.pdf. The following URL has a mirror of the nupack source:
+3. NUPACK: Install NUPACK version 3.0.6. At the time of writing, the source is publicly available by request from the authors here: http://www.nupack.org/downloads (shipped as nupack3.0.6.tar.gz). Extract and run GNU make. The pdf file doc/NUPACK-UserGuide-3.0.pdf included has helpful info on NUPACK. The unix path must be able to find NUPACK executables (e.g. pfunc, mfe), and the environment path variable NUPACKHOME must be set, as described in the NUPACK installation instructions NUPACK-UserGuide-3.0.pdf. The following URL has a mirror of the nupack source:
 http://www.dna.caltech.edu/SupplementaryMaterial/Algorithmic_SST/archived_software/nupack3.0.6.tar.gz
 
-4. ViennaRNA: Install ViennaRNA-2.1.9 (shipped as )ViennaRNA-2.1.9.tar.gz). At the time of writing the source is publicly available here: https://www.tbi.univie.ac.at/RNA/download/sourcecode/2_1_x/ViennaRNA-2.1.9.tar.gz. Follow the instructions in the "INSTALL" text file. You will need to set the environment path variable VIENNARNA_PARAMS_PATH to the location of the ViennaRNA parameters (dna_mathews1999.par and dna_mathews2004.par) which on some systems can be done via:
+4. ViennaRNA: Install ViennaRNA-2.1.9. At the time of writing the source is publicly available here: https://www.tbi.univie.ac.at/RNA/download/sourcecode/2_1_x/ViennaRNA-2.1.9.tar.gz. Follow the instructions in the "INSTALL" text file. You will need to set the environment path variable VIENNARNA_PARAMS_PATH to the location of the ViennaRNA parameters (dna_mathews1999.par and dna_mathews2004.par) which on some systems can be done via (and should be made part of your shell, e.g. bash, startup routine):
 export VIENNARNA_PARAMS_PATH=/usr/local/share/ViennaRNA/
 The following URL has a mirror of the ViennaRNA sources:
 http://www.dna.caltech.edu/SupplementaryMaterial/Algorithmic_SST/archived_software/ViennaRNA-2.1.9.tar.gz
