@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 '''Python 3 script to analyse DNA single-stranded tile sequences.'''
 
 
@@ -10,6 +11,8 @@ import math,sys,os,time,itertools,pickle,pprint
 import subprocess as sub
 import numpy as np
 import argparse as argparse
+
+import re
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -1411,7 +1414,7 @@ def idt_format_line(line):
   return len(line.split(","))==4 and set(line.split(",")[1]).issubset(set("ATCG atcg /iBiodT/"))
 
 def seq_designer_format_line(line):
-  return len(line.split("  "))==2 and set(line.split("  ")[1]).issubset(set("ATCG atcg /iBiodT/"))
+  return len(re.split("\s\s+",line))==2 and set(re.split("\s\s+",line)[1]).issubset(set("ATCG atcg /iBiodT/"))
 
 def determine_file_type(f):
   lines = get_lines_from_file(f)   # removes "#"-comments
@@ -1448,7 +1451,7 @@ def sequencer_designer_file_format_to_IDT_file_format(input_filename):
       out_file.write(l+"\n") 
 
     if not l.startswith("#") and not l=="":
-      name, sequence = l.split("  ")
+      name, sequence = re.split("\s\s+",l)
 
 
       new_line = name+","+sequence
