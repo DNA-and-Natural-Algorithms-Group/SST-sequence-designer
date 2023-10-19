@@ -137,7 +137,7 @@ def longest_common_substring(a1, a2, vectorized=True):
     substring (subarray) of 1D arrays a1 and a2.'''
     assert len(a1.shape) == 1
     assert len(a2.shape) == 1
-    counter = np.zeros(shape=(len(a1)+1,len(a2)+1), dtype=np.int)
+    counter = np.zeros(shape=(len(a1)+1,len(a2)+1), dtype=int)
     a1idx_longest = a2idx_longest = -1
     len_longest = 0
 
@@ -175,11 +175,11 @@ def longest_common_substrings_singlea1(a1, a2s):
     numa2s = a2s.shape[0]
     len_a1 = len(a1)
     len_a2 = a2s.shape[1]
-    counter = np.zeros(shape=(len_a1+1, numa2s, len_a2+1), dtype=np.int)
+    counter = np.zeros(shape=(len_a1+1, numa2s, len_a2+1), dtype=int)
 
     for i1 in range(len(a1)):
         idx = (a2s == a1[i1])
-        idx_shifted = np.insert(idx, 0, np.zeros(numa2s, dtype=np.bool), axis=1)
+        idx_shifted = np.insert(idx, 0, np.zeros(numa2s, dtype=bool), axis=1)
         counter[i1+1,idx_shifted] = counter[i1,idx]+1
 
     counter = np.swapaxes(counter, 0, 1)
@@ -228,14 +228,14 @@ def _longest_common_substrings_pairs(a1s, a2s):
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
 
-    counter = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=np.int)
+    counter = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=int)
 
     for i1 in range(len_a1):
         a1s_cp_col = a1s[:,i1].reshape(numpairs,1)
         a1s_cp_col_rp = np.repeat(a1s_cp_col, len_a2, axis=1)
 
         idx = (a2s == a1s_cp_col_rp)
-        idx_shifted = np.hstack([np.zeros(shape=(numpairs,1), dtype=np.bool), idx])
+        idx_shifted = np.hstack([np.zeros(shape=(numpairs,1), dtype=bool), idx])
         counter[i1+1,idx_shifted] = counter[i1,idx]+1
 
     counter = np.swapaxes(counter, 0, 1)
@@ -265,7 +265,7 @@ def _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s,
     numpairs = a1s.shape[0]
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
-    counter = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=np.int)
+    counter = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=int)
     energies = np.zeros(shape=(len_a1+1, numpairs, len_a2+1), dtype=np.float)
 
 #     if not loop_energies:
@@ -279,7 +279,7 @@ def _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s,
 
         # find matching chars and extend length of substring
         match_idxs = (a2s == a1s_col_rp)
-        match_shifted_idxs = np.hstack([np.zeros(shape=(numpairs,1), dtype=np.bool), match_idxs])
+        match_shifted_idxs = np.hstack([np.zeros(shape=(numpairs,1), dtype=bool), match_idxs])
         counter[i1+1,match_shifted_idxs] = counter[i1,match_idxs] + 1
 
         if i1 > 0:
@@ -289,9 +289,9 @@ def _strongest_common_substrings_all_pairs_return_energies_and_counter(a1s, a2s,
             loops = (prev_bases << 2) + cur_bases
             latest_energies = loop_energies[loops].reshape(numpairs, 1)
             latest_energies_rp = np.repeat(latest_energies, len_a2, axis=1)
-            match_idxs_false_at_end = np.hstack([match_idxs, np.zeros(shape=(numpairs,1), dtype=np.bool)])
+            match_idxs_false_at_end = np.hstack([match_idxs, np.zeros(shape=(numpairs,1), dtype=bool)])
             both_match_idxs = match_idxs_false_at_end & prev_match_shifted_idxs
-            prev_match_shifted_shifted_idxs = np.hstack([np.zeros(shape=(numpairs,1), dtype=np.bool), prev_match_shifted_idxs])[:,:-1]
+            prev_match_shifted_shifted_idxs = np.hstack([np.zeros(shape=(numpairs,1), dtype=bool), prev_match_shifted_idxs])[:,:-1]
             both_match_shifted_idxs = match_shifted_idxs & prev_match_shifted_shifted_idxs
             energies[i1+1,both_match_shifted_idxs] = energies[i1,both_match_idxs] + latest_energies_rp[both_match_idxs]
 
@@ -335,7 +335,7 @@ def _mfes_array(a1s, a2s, T):
     numpairs = a1s.shape[0]
     len_a1 = a1s.shape[1]
     len_a2 = a2s.shape[1]
-    d = np.zeros(shape=(len_a1+1, len_a2+1, numpairs), dtype=np.int)
+    d = np.zeros(shape=(len_a1+1, len_a2+1, numpairs), dtype=int)
     energies = np.zeros(shape=(len_a1+1, len_a2+1, numpairs), dtype=np.float)
 
 #     if not loop_energies:
@@ -717,7 +717,7 @@ class DNASeqList(object):
         subvals = np.dot(subints,powarr)
         toeplitz = create_toeplitz(self.seqlen, sublen)
         convolution = np.dot(toeplitz, self.seqarr.transpose())
-        passall = np.ones(self.numseqs,dtype=np.bool)
+        passall = np.ones(self.numseqs,dtype=bool)
         for subval in subvals:
             passsub = np.all(convolution != subval,axis=0)
             passall = passall & passsub
@@ -744,7 +744,7 @@ def create_toeplitz(seqlen,sublen):
     else: #This is a fix for the fact that numpypy doesn't have scipy.
         rows = seqlen-(sublen-1)
         cols = seqlen
-        toeplitz = np.zeros((rows,cols),dtype=np.int)
+        toeplitz = np.zeros((rows,cols),dtype=int)
         toeplitz[:,0:sublen] = [powarr]*rows
         shift = list(range(rows))
         for i in range(rows):
