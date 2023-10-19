@@ -44,7 +44,7 @@ let
       echo "Running the viennaRNA build phase" 
       export CFLAGS="-fcommon"
       export CXXFLAGS="-std=c++14"
-      ./configure --prefix=$out
+      ./configure --prefix=$out --without-perl --without-doc --without-doc-html --without-doc-pdf --without-kinfold --without-svm --without-forester
       make'';
     installPhase = ''
        make install
