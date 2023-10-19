@@ -6,10 +6,15 @@
 # "Diverse and robust molecular algorithms using reprogrammable DNA self-assembly"
 # Woods*, Doty*, Myhrvold, Hui, Zhou, Yin, Winfree. (*Joint first co-authors). Nature, 2019
 
-
 with import <nixpkgs>{};  # import nixos packages
 
 let 
+  pkgs = import (builtins.fetchGit {
+    name = "2019-03-revision";
+    url = "https://github.com/NixOS/nixpkgs/";
+    ref = "refs/heads/nixpkgs-unstable";
+    rev = "25b53f32236b308172673c958f570b5b488c7b73";
+  }) { };
   nupack=stdenv.mkDerivation{
     name="nupack";
     #src=./nupack_viennaRNA/nupack3.0.6.tar.gz;  # nix knows to unzip and untar and run make
@@ -17,19 +22,18 @@ let
     url = "http://www.dna.caltech.edu/SupplementaryMaterial/Algorithmic_SST/archived_software/nupack3.0.6.tar.gz";
     sha256 = "1kv5irz8n57875dgzr5w3zc9xsy8dbvcfk3iszw5ask942dpdpvw";
     };
-
-    installPhase=''  # installPhase interprets double-quoted string as a bash script
-      mkdir -p $out; # $out is a bash variable that nix sets before running this bash script
-      cp -r bin $out;
-      cp -r parameters $out;
-     '';
-  }; 
-
-  #cc=stdenv.mkDerivation{
-  #name="cc";
-  #phases = [ "installPhase" ];
-  #installPhase="mkdir -p $out/bin ; cp ${pkgs.gcc.out}/bin/gcc $out/bin/cc";
-  #};
+    buildPhase = ''
+        # -fcommon is required for modern versions of gcc to compile nupack3.0.6 without a 
+        # multiple definitions error.
+        export NUPACK_CFLAGS="-std=c99 -O3 -Wall -Wmissing-prototypes -Wmissing-declarations -fcommon"
+        export NUPACK_CXXFLAGS="-Wall -Wmissing-prototypes -Wmissing-declarations -fcommon"
+        CFLAGS=-fcommon make'';
+    installPhase = ''  # installPhase interprets double-quoted string as a bash script
+          mkdir -p $out; # $out is bash variable that nix sets before running this bash script
+          cp -r bin $out;
+          cp -r parameters $out;
+    '';
+  };
 
   viennaRNA=stdenv.mkDerivation{
     name="viennaRNA";
@@ -39,19 +43,28 @@ let
     };
     # if one has a local copy of the source one can replace the above src instruction with: 
     # src=./ViennaRNA-2.1.9.tar.gz;
-
-  buildInputs=[which perl gnumake];
-
+    buildInputs = with pkgs; [ which perl gnumake ];
+    NIX_CFLAGS_COMPILE = "-fcommon";
+    NIX_CXXFLAGS_COMPILE = "-std=c++14";
+    buildPhase = ''
+      echo "Running the viennaRNA build phase" 
+      export CFLAGS="-fcommon"
+      export CXXFLAGS="-std=c++14"
+      ./configure --prefix=$out --without-perl --without-doc --without-doc-html --without-doc-pdf --without-kinfold --without-svm --without-forester
+      make'';
+    installPhase = ''
+       make install
+      	'';
   }; in  
-
 
 stdenv.mkDerivation{
   name="nupack_viennaRNA";
-  # python3:
-  buildInputs=[coreutils python3 python3Packages.numpy python3Packages.matplotlib nupack viennaRNA];
-  # python2:
-  # buildInputs=[coreutils python2 python2Packages.numpy python2Packages.matplotlib nupack viennaRNA]; 
-  NUPACKHOME="${nupack.out}";
+  buildInputs = with pkgs; [
+    coreutils
+    (python3.withPackages (ps: [ ps.numpy ps.matplotlib ]))
+    nupack
+    viennaRNA
+  ]; # here I put a list of names of packages I want to install
+  NUPACKHOME = "${nupack.out}";
   VIENNARNA_PARAMS_PATH="${viennaRNA.out}/share/ViennaRNA/";
 }
-
