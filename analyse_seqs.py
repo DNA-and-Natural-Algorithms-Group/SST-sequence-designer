@@ -15,6 +15,8 @@ import argparse as argparse
 from sst_dsd import pfunc, binding, mfe_binding, RNAduplex_multiple
 from atam2ssts import eval_colocated_end_pair
 
+import re
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from multiprocessing.pool import ThreadPool
@@ -1212,7 +1214,7 @@ def idt_format_line(line):
   return len(line.split(","))==4 and set(line.split(",")[1]).issubset(set("ATCG atcg /iBiodT/"))
 
 def seq_designer_format_line(line):
-  return len(line.split("  "))==2 and set(line.split("  ")[1]).issubset(set("ATCG atcg /iBiodT/"))
+  return len(re.split("\s\s+",line))==2 and set(re.split("\s\s+",line)[1]).issubset(set("ATCG atcg /iBiodT/"))
 
 def seqs_with_no_names_line(line):
   return set(line.replace(" ","")).issubset(set("ATCG atcg /iBiodT/"))
@@ -1293,7 +1295,7 @@ def sequencer_designer_file_format_to_IDT_file_format(input_filename):
       out_file.write(l+"\n") 
 
     if not l.startswith("#") and not l=="":
-      name, sequence = l.split("  ")
+      name, sequence = re.split("\s\s+",l)
 
 
       new_line = name+","+sequence
