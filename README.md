@@ -16,18 +16,15 @@ Example invocations of the sequence designer are given in part C.
 
 Example usage of our sequence analysis code is given in part D. 
 
-A note on NUPACK and ViennaRNA versions: Our DNA sequence designer used nupack3.0.4 to design the 6bit IBC DNA sequences in the publication, but we include nupack3.0.6 here. We believe that choosing between either version should not affect sequence quality. We have not (yet) updated to the later versions of NUPACK than nupack3.0.6 because they would require some internal changes to our code to accommodate interface and I/O differences. We used ViennaRNA-2.1.9 in the paper, the same version used here. 
+A note on NUPACK and ViennaRNA versions: Our DNA sequence designer used nupack3.0.4 to design the 6bit IBC DNA sequences in the publication, but we include nupack3.0.6 here. We believe that choosing between either version should not affect sequence quality. We have not updated to later versions of NUPACK than nupack3.0.6 because they would require some internal changes to our code to accommodate interface and I/O differences. We used ViennaRNA-2.1.9 in the paper, the same version used here. Note that the more modern [nuad](https://github.com/UC-Davis-molecular-computing/nuad/) DNA sequence library makes use of the sequence design principles developed here, and although it has a uniquely addressed SST canvas example, as of 2023 it does not include a designer for algorithmic SST self-assembly that uses the biophysical criteria applied here. 
 
 
 ## A. Nix Instructions
 
-1. Install the Nix package manager by running:
-```
-curl https://nixos.org/nix/install | sh
-``` 
-After the install, follow any instructions given on screen. For more information on Nix, see: <https://nixos.org/nix/>.
+1. Install the Nix package manager by following the instructions at <https://nixos.org/download>.
+2. During the install, follow any instructions given on screen. For more information on Nix, see: <https://nixos.org/nix/>.
 
-2. Create a directory and place the sequence design code there.
+3. Create a directory and place the sequence design code there.
 ```
 git clone https://github.com/DNA-and-Natural-Algorithms-Group/SST-sequence-designer
 ``` 
