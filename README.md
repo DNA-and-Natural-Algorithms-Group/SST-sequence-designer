@@ -16,26 +16,26 @@ Example invocations of the sequence designer are given in part C.
 
 Example usage of our sequence analysis code is given in part D. 
 
-A note on NUPACK and ViennaRNA versions: Our DNA sequence designer used nupack3.0.4 to design the 6bit IBC DNA sequences in the publication, but we include nupack3.0.6 here. We believe that choosing between either version should not affect sequence quality. We have not updated to later versions of NUPACK than nupack3.0.6 because they would require some internal changes to our code to accommodate interface and I/O differences. We used ViennaRNA-2.1.9 in the paper, the same version used here. Note that the more modern [nuad](https://github.com/UC-Davis-molecular-computing/nuad/) DNA sequence library makes use of the sequence design principles developed here, and although it has a uniquely addressed SST canvas example, as of 2023 it does not include a designer for algorithmic SST self-assembly that uses the biophysical criteria applied here. 
+A note on NUPACK and ViennaRNA versions: Our DNA sequence designer used nupack3.0.4 to design the 6bit IBC DNA sequences in the publication, but we include nupack3.0.6 here. We believe that choosing between either version should not affect sequence quality. We have not updated to later versions of NUPACK than nupack3.0.6 because they would require some internal changes to our code to accommodate interface and I/O differences. We used ViennaRNA-2.1.9 in the paper, the same version used here. 
+
+The more recent [nuad](https://github.com/UC-Davis-molecular-computing/nuad/) DNA sequence library makes use of the sequence design principles developed here, and although it includes a uniquely-addressed SST canvas example, as of 2023 it does not include a designer for algorithmic SST self-assembly with the biophysical criteria applied here. 
 
 
 ## A. Nix Instructions
 
-1. Install the Nix package manager by following the instructions at <https://nixos.org/download>.
-2. During the install, follow any instructions given on screen. For more information on Nix, see: <https://nixos.org/nix/>.
-
+1. Install the [Nix](https://nixos.org/nix/) package manager by following the instructions at <https://nixos.org/download>.
+2. During the install, follow any instructions given on screen.
 3. Create a directory and place the sequence design code there.
 ```
 git clone https://github.com/DNA-and-Natural-Algorithms-Group/SST-sequence-designer
 ``` 
-
-3. That directory needs to contain the file default.nix shipped with the sequence design code. You'll need an internet connection. In that directory run the command:
+4. That directory needs to contain the file default.nix shipped with the sequence design code. You'll need an internet connection. In that directory run the command:
 ```
 nix-shell
 ```
 This will download and install a number of dependencies, essentially in an isolated environment (i.e. not on your system path), including nupack, ViennaRNA, python3 and others. Nix should then present you a new bash shell ready for use. The dependencies required for our sequence designer are locally available to the nix/bash shell and will not be globally available on your system (nor will they interfere with your current system setup).
 
-Running `nix-shell` runs `default.nix`, which uses modern versions of nix. In order to use older versions of nix (2019, or 2023), run: `nix-shell default-2023.nix` and `nix-shell defualt-2019.nix`. 
+Running `nix-shell` runs `default.nix`, which uses modern versions of nix. In order to use older versions of nix (2019, or 2023), run: `nix-shell default-2023.nix` and `nix-shell default-2019.nix`. 
 
 
 ## B. Do-it-yourself Instructions
@@ -81,7 +81,7 @@ python3 atam2ssts.py --help
 
 ## D. Analysing designed sequence -- example commands
 
-Input can be taken directly from a run of sequence designer (e.g. demo_sequences.txt in the example above), or can be an idt-formatted file. The code produces a set of pdf plots that describe thermodynamic proerties of the input DNA sequences. 
+Input can be taken directly from a run of sequence designer (e.g. demo_sequences.txt in the example above), or can be an idt-formatted file. The code produces a set of pdf plots that describe thermodynamic properties of the input DNA sequences. 
 
 An example command to analyse a small demo sequence set, at a default temperature of 53.0 C: 
 ```
