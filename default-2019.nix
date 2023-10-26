@@ -9,6 +9,12 @@
 with import <nixpkgs>{};  # import nixos packages
 
 let 
+  pkgs = import (builtins.fetchGit {
+    name = "2019-03-revision";
+    url = "https://github.com/NixOS/nixpkgs/";
+    ref = "refs/heads/nixpkgs-unstable";
+    rev = "25b53f32236b308172673c958f570b5b488c7b73";
+  }) { };
   nupack=stdenv.mkDerivation{
     name="nupack";
     #src=./nupack_viennaRNA/nupack3.0.6.tar.gz;  # nix knows to unzip and untar and run make
