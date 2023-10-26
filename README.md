@@ -35,6 +35,8 @@ nix-shell
 ```
 This will download and install a number of dependencies, essentially in an isolated environment (i.e. not on your system path), including nupack, ViennaRNA, python3 and others. Nix should then present you a new bash shell ready for use. The dependencies required for our sequence designer are locally available to the nix/bash shell and will not be globally available on your system (nor will they interfere with your current system setup).
 
+Running `nix-shell` runs `default.nix`, which uses modern versions of nix. In order to use older versions of nix (2019, or 2023), run: `nix-shell default-2023.nix` and `nix-shell defualt-2019.nix`. 
+
 
 ## B. Do-it-yourself Instructions
 
